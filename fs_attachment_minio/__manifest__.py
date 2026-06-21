@@ -8,7 +8,7 @@
     "license": "AGPL-3",
     "author": "Ross Golder,Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/storage",
-    "depends": ["fs_attachment"],
+    "depends": ["fs_attachment", "fs_storage_minio"],
     "external_dependencies": {
         "python": [
             "minio",

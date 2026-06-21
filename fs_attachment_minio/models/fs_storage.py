@@ -25,4 +25,4 @@ class FsStorage(models.Model):
     def is_minio_storage(self):
         """Check if the storage is a MinIO storage."""
         self.ensure_one()
-        return self.protocol == "s3" and self.options.get("endpoint_url")
+        return self.protocol == "minio"

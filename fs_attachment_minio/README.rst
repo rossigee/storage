@@ -22,11 +22,11 @@ Fs Attachment MinIO
 
 |badge2| |badge3| |badge4| |badge5|
 
-This module adds MinIO storage support to the ``fs_attachment`` module.
+This module adds MinIO storage support to the ``fs_attachment`` module using the
+official ``minio`` Python SDK.
 
 MinIO is an S3-compatible object storage server that is lightweight and easy to deploy.
-This module uses the ``minio`` Python library which provides a cleaner, more lightweight
-alternative to boto3/aiobotocore.
+This module provides a clean, native integration without depending on boto3/aiobotocore.
 
 **Table of contents**
 
@@ -36,26 +36,22 @@ alternative to boto3/aiobotocore.
 Configuration
 =============
 
-To configure a MinIO storage for attachments:
+To configure MinIO storage for attachments:
 
-#. Go to *Settings > Storage > Storages*
-#. Create a new storage
-#. Set Protocol to "S3"
-#. Fill in the required options as JSON:
+#. Go to *Storage > Storage Backends*
+#. Create a new storage backend
+#. Set **Protocol** to "minio"
+#. Fill in the connection details:
 
-   .. code-block:: json
+   * **Endpoint**: MinIO server address (e.g., ``localhost:9000`` or ``minio.example.com:9000``)
+   * **Access Key**: Your MinIO access key
+   * **Secret Key**: Your MinIO secret key
+   * **Secure**: Enable for HTTPS (recommended for production)
+   * **Region**: AWS region name (default: ``us-east-1``)
 
-       {
-           "key": "minio-access-key",
-           "secret": "minio-secret-key",
-           "client_kwargs": {
-               "endpoint_url": "http://localhost:9000",
-               "region_name": "us-east-1"
-           }
-       }
-
-#. Set the Directory Path to your bucket name (e.g., ``mybucket``)
-#. Enable "Use X-Accel-Redirect to serve internal URL" if needed
+#. Optionally set **Directory Path** to a subdirectory for organizing attachments
+#. If you want X-Accel-Redirect support, enable "Use X-Accel-Redirect to serve internal URL"
+   and optionally "Use signed URL for X-Accel-Redirect" for time-limited presigned URLs
 
 Bug Tracker
 ===========

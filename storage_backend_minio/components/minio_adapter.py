@@ -24,12 +24,12 @@ class MinIOStorageAdapter(Component):
     _usage = "minio"
 
     def _get_client(self):
-        scheme = "https" if self.collection.minio_secure else "http"
-        host = self.collection.minio_host or "localhost:9000"
+        endpoint = self.collection.minio_host or "localhost:9000"
         client = Minio(
-            f"{scheme}://{host}",
+            endpoint,
             access_key=self.collection.minio_access_key,
             secret_key=self.collection.minio_secret_key,
+            secure=self.collection.minio_secure,
             region=self.collection.minio_region or "us-east-1",
         )
         return client
