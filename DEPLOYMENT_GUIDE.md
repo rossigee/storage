@@ -6,6 +6,17 @@ This guide covers deploying the new genuine MinIO storage implementation to prod
 
 **Status**: ✅ Ready for production deployment
 
+### About This Implementation
+
+This is the **third generation** of storage approaches in Odoo:
+- **Legacy**: `fs_attachment_s3` (environment-based, attachment-only)
+- **Framework**: `storage_backend_s3` (OCA unified, boto3-based)
+- **Modern**: `storage_backend_minio` (lightweight, native S3-compatible) ← **You are deploying this**
+
+**Key advantage**: Native `minio` SDK (5MB) instead of boto3 (123MB), without sacrificing functionality.
+
+→ See [STORAGE_HISTORY.md](STORAGE_HISTORY.md) for detailed evolution and migration information
+
 ## Pre-Deployment Requirements
 
 ### 1. MinIO Server Setup

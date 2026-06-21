@@ -356,4 +356,4 @@ class MinioFileSystem(AbstractFileSystem):
             raise
 
 
-fsspec.registry.register_implementation("minio", MinioFileSystem)
+fsspec.register_implementation("minio", MinioFileSystem)

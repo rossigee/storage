@@ -10,7 +10,32 @@
 
 <!-- /!\ do not modify above this line -->
 
-TODO: add repo description.
+# Odoo Storage Backend Modules
+
+This repository contains a comprehensive collection of storage backend modules for Odoo, supporting multiple storage backends including Amazon S3, MinIO, SFTP, and local filesystems.
+
+## Quick Start
+
+### For MinIO Deployments (Recommended)
+- **Module**: `storage_backend_minio`
+- **Lightweight**: 5MB footprint vs 123MB for boto3
+- **Quick Setup**: See [MINIO_START_HERE.md](MINIO_START_HERE.md)
+- **Best for**: Cloud-native, containerized, resource-constrained environments
+
+### For AWS S3 Deployments
+- **Module**: `storage_backend_s3`
+- **Full AWS Support**: All AWS S3 features
+- **Stable**: Production-proven
+- **Setup**: Admin UI configuration in *Storage > Storage Backends*
+
+### Understanding the Evolution
+This repository includes **three generations** of storage approaches:
+
+1. **Legacy** (`fs_attachment_s3`): Environment-based attachment storage (Camp-to-Camp original)
+2. **Framework** (`storage_backend_s3`): OCA unified framework with boto3
+3. **Modern** (`storage_backend_minio`): Lightweight, native S3-compatible support
+
+**→ See [STORAGE_HISTORY.md](STORAGE_HISTORY.md) for detailed comparison and migration paths**
 
 <!-- /!\ do not modify below this line -->
 

@@ -1,12 +1,25 @@
 # MinIO Storage Implementation - START HERE 🚀
 
+## Historical Context
+
+This repository evolved through three generations of storage approaches:
+
+1. **Legacy** (`fs_attachment_s3`): Environment-based, attachment-only (Camp-to-Camp original)
+2. **Framework** (`storage_backend_s3`): OCA unified framework, boto3-based, AWS-focused  
+3. **Modern** (`storage_backend_minio`): ← **You are here** — Lightweight, native S3-compatible
+
+**→ For detailed comparison, see [STORAGE_HISTORY.md](STORAGE_HISTORY.md)**
+
+---
+
 ## Quick Overview
 
 This repository now includes **genuine MinIO support** for Odoo 16.0, 17.0, and 18.0 using the official `minio` Python SDK.
 
 **Status**: ✅ Production Ready  
 **Tested**: Against real MinIO server (22 tests passed)  
-**Dependencies**: Zero boto3/aiobotocore (native minio SDK only)
+**Dependencies**: Zero boto3/aiobotocore (native minio SDK only)  
+**Library Size**: 5MB vs 123MB for boto3 — **96% smaller footprint**
 
 ---
 
