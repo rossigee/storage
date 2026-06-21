@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_migrate_attachments" model="ir.actions.server">
+        <field name="name">Migrate Attachments</field>
+        <field name="model_id" ref="base.model_ir_attachment"/>
+        <field name="binding_model_id" ref="base.model_ir_attachment"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="state">code</field>
+        <field name="code"><![CDATA[
+try:
+    records.force_storage()
+except Exception as e:
+    raise UserError(f"Error during migration: {str(e)}")
+]]>
+        </field>
+    </record>
+
+    <record id="action_migrate_attachments_binding" model="ir.actions.actions">
+        <field name="name">Migrate Attachments</field>
+        <field name="type">char</field>
+        <field name="binding_type">action</field>
+        <field name="xml_id" ref="action_migrate_attachments"/>
+    </record>
+</odoo>
