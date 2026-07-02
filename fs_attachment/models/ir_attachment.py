@@ -12,6 +12,7 @@ import re
 import time
 from contextlib import closing, contextmanager
 from pathlib import Path
+from typing import Optional
 
 import fsspec  # pylint: disable=missing-manifest-dependency
 import psycopg2
@@ -513,7 +514,7 @@ class IrAttachment(models.Model):
     def _get_fs_storage_for_code(
         self,
         code: str,
-    ) -> fsspec.AbstractFileSystem | None:
+    ) -> Optional[fsspec.AbstractFileSystem]:
         """Return the filesystem for the given storage code"""
         fs = self.env["fs.storage"].get_fs_by_code(code)
         if not fs:
@@ -748,7 +749,7 @@ class IrAttachment(models.Model):
 
     @api.model
     def force_storage_to_db_for_special_fields(
-        self, new_cr=False, storage: str | None = None
+        self, new_cr=False, storage: Optional[str] = None
     ):
         """Migrate special attachments from Object Storage back to database
 
@@ -948,9 +949,9 @@ class AttachmentFileLikeAdapter(object):
         self,
         attachment: IrAttachment,
         mode: str = "rb",
-        block_size: int | None = None,
-        cache_options: dict | None = None,
-        compression: str | None = None,
+        block_size: Optional[int] = None,
+        cache_options: Optional[dict] = None,
+        compression: Optional[str] = None,
         new_version: bool = False,
         **kwargs,
     ):
@@ -963,9 +964,9 @@ class AttachmentFileLikeAdapter(object):
         self._kwargs = kwargs
 
         # state attributes
-        self._file: io.IOBase | None = None
-        self._filesystem: fsspec.AbstractFileSystem | None = None
-        self._new_store_fname: str | None = None
+        self._file: Optional[io.IOBase] = None
+        self._filesystem: Optional[fsspec.AbstractFileSystem] = None
+        self._new_store_fname: Optional[str] = None
 
     @property
     def attachment(self) -> IrAttachment:
@@ -978,17 +979,17 @@ class AttachmentFileLikeAdapter(object):
         return self._mode
 
     @property
-    def block_size(self) -> int | None:
+    def block_size(self) -> Optional[int]:
         """The block size used to open the file"""
         return self._block_size
 
     @property
-    def cache_options(self) -> dict | None:
+    def cache_options(self) -> Optional[dict]:
         """The cache options used to open the file"""
         return self._cache_options
 
     @property
-    def compression(self) -> str | None:
+    def compression(self) -> Optional[str]:
         """The compression used to open the file"""
         return self._compression
 
