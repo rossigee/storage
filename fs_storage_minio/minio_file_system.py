@@ -7,6 +7,7 @@ from datetime import timedelta
 
 import fsspec
 import urllib3
+from fsspec.registry import register_implementation
 from fsspec.spec import AbstractFileSystem
 from fsspec.utils import infer_storage_options
 
@@ -359,4 +360,4 @@ class MinioFileSystem(AbstractFileSystem):
             raise
 
 
-fsspec.register_implementation("minio", MinioFileSystem)
+register_implementation("minio", MinioFileSystem)
