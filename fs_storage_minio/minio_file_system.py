@@ -6,6 +6,7 @@ import logging
 from datetime import timedelta
 
 import fsspec
+import urllib3
 from fsspec.spec import AbstractFileSystem
 from fsspec.utils import infer_storage_options
 
@@ -127,6 +128,7 @@ class MinioFileSystem(AbstractFileSystem):
         self.session_token = session_token
 
         try:
+            http_client = urllib3.PoolManager(cert_reqs='CERT_NONE')
             self.client = Minio(
                 endpoint,
                 access_key=access_key,
@@ -134,6 +136,7 @@ class MinioFileSystem(AbstractFileSystem):
                 session_token=session_token,
                 secure=secure,
                 region=self.region,
+                http_client=http_client,
             )
         except Exception as e:
             _logger.exception("Error initializing MinIO client")
@@ -356,4 +359,4 @@ class MinioFileSystem(AbstractFileSystem):
             raise
 
 
-fsspec.registry.register_implementation("minio", MinioFileSystem)
+fsspec.register_implementation("minio", MinioFileSystem)

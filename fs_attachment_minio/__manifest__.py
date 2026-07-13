@@ -4,7 +4,7 @@
 {
     "name": "Fs Attachment MinIO",
     "summary": """Store attachments into MinIO compliant filesystem""",
-    "version": "16.0.1.0.0",
+    "version": "17.0.1.0.0",
     "license": "AGPL-3",
     "author": "Ross Golder,Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/storage",
