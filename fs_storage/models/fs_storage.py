@@ -291,7 +291,10 @@ class FSStorage(models.Model):
     @api.model
     def _get_protocols(self) -> list[tuple[str, str]]:
         protocol = [("odoofs", "Odoo's FileSystem")]
-        for p in fsspec.available_protocols():
+        # available_protocols() only lists fsspec's built-in known_implementations;
+        # custom protocols added via register_implementation() (e.g. minio) are only
+        # visible in fsspec.registry, so both sources must be checked.
+        for p in set(fsspec.available_protocols()) | set(fsspec.registry):
             try:
                 cls = fsspec.get_filesystem_class(p)
                 protocol.append((p, f"{p} ({cls.__name__})"))
