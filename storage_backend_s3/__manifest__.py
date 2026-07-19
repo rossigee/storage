@@ -7,7 +7,7 @@
 {
     "name": "Storage Backend S3",
     "summary": "Amazon S3 storage backend",
-    "version": "16.0.1.0.0",
+    "version": "17.0.1.0.0",
     "license": "LGPL-3",
     "author": "Akretion,Camptocamp,Odoo Community Association (OCA)",
     "website": "https://github.com/OCA/storage",
