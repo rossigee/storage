@@ -185,7 +185,7 @@ class MinioFileSystem(AbstractFileSystem):
             result = []
             for obj in objects:
                 item = {
-                    "name": obj.object_name,
+                    "name": self._make_path(bucket, obj.object_name),
                     "size": obj.size,
                     "type": "directory" if obj.object_name.endswith("/") else "file",
                     "time_modified": obj.last_modified,
@@ -220,7 +220,7 @@ class MinioFileSystem(AbstractFileSystem):
 
             stat = self.client.stat_object(bucket, key)
             return {
-                "name": key,
+                "name": self._make_path(bucket, key),
                 "size": stat.size,
                 "type": "file",
                 "time_modified": stat.last_modified,
