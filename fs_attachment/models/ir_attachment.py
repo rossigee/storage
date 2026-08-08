@@ -92,6 +92,13 @@ class IrAttachment(models.Model):
         ondelete="restrict",
     )
 
+    is_missing = fields.Boolean(
+        string="Missing from Storage",
+        default=False,
+        help="Set to True when the file is missing from both object storage and filestore. "
+        "This indicates a broken attachment that cannot be served.",
+    )
+
     @api.depends("name")
     def _compute_internal_url(self) -> None:
         for rec in self:
@@ -414,10 +421,12 @@ class IrAttachment(models.Model):
         :return: The file content as bytes, or empty bytes if not found
         """
         fs, _storage, fname = self._fs_parse_store_fname(fname)
+        attachment_id = attachment.id if attachment else None
+
         try:
             with fs.open(fname, "rb") as f:
                 return f.read()
-        except OSError:
+        except OSError as e:
             _logger.info(
                 "Error reading %s on storage %s, trying filestore fallback",
                 fname,
@@ -427,8 +436,10 @@ class IrAttachment(models.Model):
 
         filestore_data = self._read_from_filestore(fname)
         if filestore_data is not None:
-            _logger.info(
-                "Found file %s in filestore, migrating to storage %s",
+            _logger.warning(
+                "Attachment %s: File %s found in filestore but not in object storage %s. "
+                "Migrating now.",
+                attachment_id,
                 fname,
                 _storage,
             )
@@ -436,8 +447,18 @@ class IrAttachment(models.Model):
                 filestore_data, _storage
             )
             if attachment and new_fname:
-                attachment.write({"store_fname": new_fname})
+                attachment.write({"store_fname": new_fname, "is_missing": False})
             return filestore_data
+
+        _logger.error(
+            "Attachment %s: File %s missing from both object storage (%s) and filestore. "
+            "Marking as missing.",
+            attachment_id,
+            fname,
+            _storage,
+        )
+        if attachment:
+            attachment.sudo().write({"is_missing": True})
 
         return b""
 
