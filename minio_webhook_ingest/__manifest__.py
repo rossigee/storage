@@ -27,13 +27,17 @@ Configuration (via ir.config_parameter):
     "website": "",
     "license": "LGPL-3",
     "depends": [
+        "base",
+        "queue_job",
     ],
     "external_dependencies": {
         "python": [
             "minio",
         ],
     },
-    "data": [],
+    "data": [
+        "security/ir.model.access.csv",
+    ],
     "installable": True,
     "application": False,
     "auto_install": False,

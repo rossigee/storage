@@ -96,7 +96,6 @@ class MinioWebhookController(http.Controller):
                     "detail": detail,
                     "remote_addr": request.httprequest.remote_addr or "unknown",
                     "attachment_id": attachment_id,
-                    "job_id": job_id,
                     "job_uuid": job_uuid,
                 }
             )
