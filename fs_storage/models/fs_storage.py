@@ -291,6 +291,20 @@ class FSStorage(models.Model):
     @api.model
     def _get_protocols(self) -> list[tuple[str, str]]:
         protocol = [("odoofs", "Odoo's FileSystem")]
+        # Ensure minio protocol is registered in fsspec.registry before
+        # building the Selection options. fs_storage_minio depends on
+        # fs_storage, so it loads after us and _get_protocols() can be
+        # called before it registers.  Importing at call-time (not at
+        # module load) avoids circular-import issues.
+        if "minio" not in fsspec.registry:
+            try:
+                import importlib
+
+                importlib.import_module(
+                    "odoo.addons.fs_storage_minio.minio_file_system"
+                )
+            except ImportError:
+                _logger.debug("fs_storage_minio not available; minio protocol disabled")
         # available_protocols() only lists fsspec's built-in known_implementations;
         # custom protocols added via register_implementation() (e.g. minio) are only
         # visible in fsspec.registry, so both sources must be checked.
