@@ -56,3 +56,29 @@ class WebDAVUploadController(http.Controller):
                 return http.Response(f'Upload failed: {str(e)}', status=500)
 
         return http.Response('Method not allowed', status=405)
+
+    @http.route('/contact/submit', type='http', auth='public', methods=['POST'], csrf=False)
+    def handle_contact_form(self, **post):
+        """Handle contact form submission."""
+        try:
+            name = post.get('name', '').strip()
+            email = post.get('email', '').strip()
+            message = post.get('message', '').strip()
+
+            if not all([name, email, message]):
+                return http.Response('Missing required fields', status=400)
+
+            # Send email via mail.mail
+            mail_values = {
+                'subject': f'New Contact Form Submission from {name}',
+                'body_html': f'<p><strong>Name:</strong> {name}</p><p><strong>Email:</strong> {email}</p><p><strong>Message:</strong></p><p>{message.replace(chr(10), "<br/>")}</p>',
+                'email_from': email,
+                'email_to': request.env.user.company_id.email or 'contact@example.com',
+            }
+            request.env['mail.mail'].sudo().create(mail_values).send()
+
+            _logger.info(f"Contact form submitted by {name} ({email})")
+            return http.Response('<h1>Thank you!</h1><p>Your message has been sent successfully.</p>', status=200)
+        except Exception as e:
+            _logger.error(f"Contact form error: {str(e)}")
+            return http.Response(f'Error: {str(e)}', status=500)
