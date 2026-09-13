@@ -8,7 +8,7 @@ _logger = logging.getLogger(__name__)
 
 class WebDAVUploadController(http.Controller):
 
-    @http.route('/upload/dav/<path:subpath>', type='http', auth='public', methods=['PUT', 'PROPFIND', 'MKCOL', 'OPTIONS'], csrf=False)
+    @http.route('/upload/dav/<path:subpath>', type='http', auth='public', methods=['PUT', 'PROPFIND', 'MKCOL', 'OPTIONS'], csrf=False, priority=100)
     def handle_webdav_upload(self, subpath, **kwargs):
         """Handle WebDAV requests for bank statement uploads."""
         _logger.info(f"WebDAV {request.method} request: {subpath}")
