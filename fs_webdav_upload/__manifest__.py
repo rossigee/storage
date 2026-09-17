@@ -5,6 +5,7 @@
     'summary': 'WebDAV endpoint for file uploads',
     'author': 'Golder',
     'depends': ['web'],
+    'license': 'LGPL-3',
     'installable': True,
     'auto_install': False,
 }

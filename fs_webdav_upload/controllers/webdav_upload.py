@@ -11,25 +11,25 @@ class WebDAVUploadController(http.Controller):
     @http.route('/upload/dav/<path:subpath>', type='http', auth='public', methods=['PUT', 'PROPFIND', 'MKCOL', 'OPTIONS'], csrf=False, priority=100)
     def handle_webdav_upload(self, subpath, **kwargs):
         """Handle WebDAV requests for bank statement uploads."""
-        _logger.info(f"WebDAV {request.method} request: {subpath}")
+        _logger.info(f"WebDAV {request.httprequest.method} request: {subpath}")
 
         # Handle OPTIONS (pre-flight)
-        if request.method == 'OPTIONS':
+        if request.httprequest.method == 'OPTIONS':
             return http.Response('', headers={
                 'Allow': 'PUT, GET, HEAD, DELETE, PROPFIND, MKCOL, MOVE, COPY, OPTIONS',
                 'DAV': '1,2',
             })
 
         # Handle PROPFIND (directory listing)
-        if request.method == 'PROPFIND':
+        if request.httprequest.method == 'PROPFIND':
             return http.Response('', status=207, headers={'Content-Type': 'application/xml'})
 
         # Handle MKCOL (directory creation)
-        if request.method == 'MKCOL':
+        if request.httprequest.method == 'MKCOL':
             return http.Response('', status=201)
 
         # Handle PUT (file upload)
-        if request.method == 'PUT':
+        if request.httprequest.method == 'PUT':
             try:
                 # Extract filename from path
                 parts = subpath.rstrip('/').split('/')
