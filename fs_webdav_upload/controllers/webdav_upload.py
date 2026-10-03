@@ -1,45 +1,107 @@
 # WebDAV upload handler for bank statements
 import base64
+import json
 import logging
+
 from odoo import http
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+# Filenames are attacker-controlled here (auth='public' + a path segment), so
+# cap the depth and reject anything that could escape the intended flat layout.
+_MAX_PATH_DEPTH = 8
+_MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+
+
+def _json_error(message, status):
+    return http.Response(
+        json.dumps({"error": message}),
+        status=status,
+        headers={"Content-Type": "application/json"},
+    )
+
+
+def _authenticate():
+    """Validate the Bearer token and return (user, error_response).
+
+    On failure the first value is None and error_response is a Response.
+    On success, error_response is None.
+
+    This mirrors sms_collector's _authenticate() so both public ingestion
+    endpoints accept the same res.users.apikeys credential. The route is
+    auth='public' because WebDAV clients cannot be relied on to complete an
+    Odoo login, so the API key is the only thing standing between an anonymous
+    caller and a write. Do not relax this without putting real authentication
+    in front of the route.
+    """
+    auth_header = request.httprequest.headers.get("Authorization")
+    if not auth_header:
+        return None, _json_error("No Authorization header provided", 401)
+    if not auth_header.startswith("Bearer "):
+        return None, _json_error("Invalid Authorization format", 401)
+    api_key = auth_header.split(" ", 1)[1].strip()
+    if not api_key:
+        return None, _json_error("Invalid API key", 401)
+    user_id = request.env["res.users.apikeys"]._check_credentials(
+        scope="rpc", key=api_key
+    )
+    if not user_id:
+        return None, _json_error("Invalid API key", 401)
+    user = request.env["res.users"].sudo().browse(user_id)
+    if not user.exists() or not user.active:
+        return None, _json_error("Invalid API key", 401)
+    return user, None
+
 
 class WebDAVUploadController(http.Controller):
 
     @http.route('/upload/dav/<path:subpath>', type='http', auth='public', methods=['PUT', 'PROPFIND', 'MKCOL', 'OPTIONS'], csrf=False, priority=100)
     def handle_webdav_upload(self, subpath, **kwargs):
         """Handle WebDAV requests for bank statement uploads."""
-        _logger.info(f"WebDAV {request.httprequest.method} request: {subpath}")
+        method = request.httprequest.method
+        _logger.info(f"WebDAV {method} request: {subpath}")
 
-        # Handle OPTIONS (pre-flight)
-        if request.httprequest.method == 'OPTIONS':
+        # Handle OPTIONS (pre-flight). Deliberately ahead of authentication:
+        # a client must be able to discover capabilities before it has a
+        # credential, and this response discloses nothing.
+        if method == 'OPTIONS':
             return http.Response('', headers={
                 'Allow': 'PUT, GET, HEAD, DELETE, PROPFIND, MKCOL, MOVE, COPY, OPTIONS',
                 'DAV': '1,2',
             })
 
+        user, err = _authenticate()
+        if err:
+            return err
+
         # Handle PROPFIND (directory listing)
-        if request.httprequest.method == 'PROPFIND':
+        if method == 'PROPFIND':
             return http.Response('', status=207, headers={'Content-Type': 'application/xml'})
 
         # Handle MKCOL (directory creation)
-        if request.httprequest.method == 'MKCOL':
+        if method == 'MKCOL':
             return http.Response('', status=201)
 
         # Handle PUT (file upload)
-        if request.httprequest.method == 'PUT':
+        if method == 'PUT':
             try:
-                # Extract filename from path
-                parts = subpath.rstrip('/').split('/')
-                filename = parts[-1] if parts else 'upload.txt'
+                parts = [p for p in subpath.rstrip('/').split('/') if p]
+                if not parts:
+                    return _json_error("No filename in path", 400)
+                if len(parts) > _MAX_PATH_DEPTH:
+                    return _json_error("Path too deep", 400)
+                if any(p in ('.', '..') for p in parts):
+                    return _json_error("Invalid path segment", 400)
+                filename = parts[-1]
 
-                # Read the file content
                 file_data = request.httprequest.get_data()
+                if not file_data:
+                    return _json_error("Empty body", 400)
+                if len(file_data) > _MAX_UPLOAD_BYTES:
+                    return _json_error("File too large", 413)
 
-                # Create attachment
-                attachment = request.env['ir.attachment'].sudo().create({
+                attachment = request.env['ir.attachment'].with_user(user).sudo().create({
                     'name': filename,
                     'datas': base64.b64encode(file_data),
                     'type': 'binary',
@@ -47,7 +109,10 @@ class WebDAVUploadController(http.Controller):
                     'public': False,
                 })
 
-                _logger.info(f"WebDAV upload successful: {filename} (attachment id: {attachment.id})")
+                _logger.info(
+                    "WebDAV upload successful: %s by user %s (attachment id: %s)",
+                    filename, user.login, attachment.id,
+                )
                 return http.Response('', status=201, headers={
                     'Location': f'/attachment/{attachment.id}',
                 })
