@@ -4,7 +4,7 @@
     'category': 'Tools',
     'summary': 'WebDAV endpoint for file uploads',
     'author': 'Golder',
-    'depends': ['web'],
+    'depends': ['web', 'base'],
     'license': 'LGPL-3',
     'installable': True,
     'auto_install': False,
