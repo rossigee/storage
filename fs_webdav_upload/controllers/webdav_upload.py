@@ -95,8 +95,30 @@ class WebDAVUploadController(http.Controller):
                     return _json_error("Invalid path segment", 400)
                 filename = parts[-1]
 
-                file_data = request.httprequest.get_data()
+                # cache=False is required, not an optimisation choice.
+                #
+                # Werkzeug parses form-encoded request bodies when the Content-Type
+                # is application/x-www-form-urlencoded or multipart/form-data, and
+                # that consumes the input stream. A later get_data() then returns
+                # b"" and the request looks like an empty upload. curl sends the
+                # former by default when no Content-Type is given, so a plain
+                # `curl -T file` produced:
+                #
+                #     {"error": "Empty body"}   400
+                #
+                # for a request carrying a perfectly good file. Caching the raw
+                # body first is what makes the upload work whatever Content-Type
+                # the client picks.
+                file_data = request.httprequest.get_data(cache=False)
                 if not file_data:
+                    # Separate "no body at all" from "body consumed upstream", so
+                    # the 400 says something actionable.
+                    if (request.httprequest.content_length or 0) > 0:
+                        return _json_error(
+                            "Request body was consumed before it could be read; "
+                            "retry with an explicit non-form Content-Type",
+                            400,
+                        )
                     return _json_error("Empty body", 400)
                 if len(file_data) > _MAX_UPLOAD_BYTES:
                     return _json_error("File too large", 413)
