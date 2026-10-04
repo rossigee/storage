@@ -1,6 +1,6 @@
 {
     "name": "MinIO Webhook Ingest",
-    "version": "1.0.0",
+    "version": "17.0.1.0.0",
     "category": "Tools",
     "summary": "Receive MinIO bucket notifications and ingest uploaded files as attachments",
     "description": """
