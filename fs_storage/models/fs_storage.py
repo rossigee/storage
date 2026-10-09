@@ -291,7 +291,24 @@ class FSStorage(models.Model):
     @api.model
     def _get_protocols(self) -> list[tuple[str, str]]:
         protocol = [("odoofs", "Odoo's FileSystem")]
-        for p in fsspec.available_protocols():
+        # Ensure minio protocol is registered in fsspec.registry before
+        # building the Selection options. fs_storage_minio depends on
+        # fs_storage, so it loads after us and _get_protocols() can be
+        # called before it registers.  Importing at call-time (not at
+        # module load) avoids circular-import issues.
+        if "minio" not in fsspec.registry:
+            try:
+                import importlib
+
+                importlib.import_module(
+                    "odoo.addons.fs_storage_minio.minio_file_system"
+                )
+            except ImportError:
+                _logger.debug("fs_storage_minio not available; minio protocol disabled")
+        # available_protocols() only lists fsspec's built-in known_implementations;
+        # custom protocols added via register_implementation() (e.g. minio) are only
+        # visible in fsspec.registry, so both sources must be checked.
+        for p in set(fsspec.available_protocols()) | set(fsspec.registry):
             try:
                 cls = fsspec.get_filesystem_class(p)
                 protocol.append((p, f"{p} ({cls.__name__})"))
@@ -575,3 +592,44 @@ class FSStorage(models.Model):
         while hasattr(fs, "fs"):
             fs = fs.fs
         return fs
+
+    def _get_storage_attachment_stats(self) -> dict:
+        """Get attachment statistics for this storage.
+
+        Returns a dictionary with counts of:
+        - total: Total attachments pointing to this storage
+        - object_storage: Attachments with object storage paths (minio://, s3://, etc.)
+        - filestore: Attachments with local filestore paths (not yet migrated)
+        - missing: Attachments marked as missing from storage
+
+        :return: Dictionary with attachment counts
+        """
+        self.ensure_one()
+
+        Attachment = self.env["ir.attachment"].sudo()
+
+        base_domain = [
+            ("fs_storage_id", "=", self.id),
+            ("store_fname", "!=", False),
+        ]
+
+        total = Attachment.search_count(base_domain)
+
+        object_storage_domain = base_domain + [("store_fname", "like", "://")]
+        object_storage = Attachment.search_count(object_storage_domain)
+
+        filestore_domain = base_domain + [
+            ("store_fname", "not like", "://"),
+            ("is_missing", "=", False),
+        ]
+        filestore = Attachment.search_count(filestore_domain)
+
+        missing_domain = base_domain + [("is_missing", "=", True)]
+        missing = Attachment.search_count(missing_domain)
+
+        return {
+            "total": total,
+            "object_storage": object_storage,
+            "filestore": filestore,
+            "missing": missing,
+        }

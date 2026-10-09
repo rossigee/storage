@@ -92,6 +92,13 @@ class IrAttachment(models.Model):
         ondelete="restrict",
     )
 
+    is_missing = fields.Boolean(
+        string="Missing from Storage",
+        default=False,
+        help="Set to True when the file is missing from both object storage and filestore. "
+        "This indicates a broken attachment that cannot be served.",
+    )
+
     @api.depends("name")
     def _compute_internal_url(self) -> None:
         for rec in self:
@@ -345,6 +352,9 @@ class IrAttachment(models.Model):
     @api.model
     def _file_read(self, fname):
         if self._is_file_from_a_storage(fname):
+            attachment = self.sudo().search([("store_fname", "=", fname)], limit=1)
+            if attachment:
+                return self._storage_file_read_with_fallback(fname, attachment)
             return self._storage_file_read(fname)
         else:
             return super()._file_read(fname)
@@ -382,7 +392,11 @@ class IrAttachment(models.Model):
     ##############################################
     @api.model
     def _storage_file_read(self, fname: str) -> bytes | None:
-        """Read the file from the filesystem storage"""
+        """Read the file from the filesystem storage.
+
+        If the file is not found in the object storage, attempts to read from
+        the filestore and migrate it to the object storage for future requests.
+        """
         fs, _storage, fname = self._fs_parse_store_fname(fname)
         try:
             with fs.open(fname, "rb") as f:
@@ -392,6 +406,110 @@ class IrAttachment(models.Model):
                 "Error reading %s on storage %s", fname, _storage, exc_info=True
             )
         return b""
+
+    @api.model
+    def _storage_file_read_with_fallback(
+        self, fname: str, attachment: "ir.attachment" | None = None
+    ) -> bytes | None:
+        """Read the file from the filesystem storage with fallback to filestore.
+
+        If the file is not found in the object storage, attempts to read from
+        the filestore and migrates it to the object storage for future requests.
+
+        :param fname: The store_fname of the file to read
+        :param attachment: Optional attachment record to update after migration
+        :return: The file content as bytes, or empty bytes if not found
+        """
+        fs, _storage, fname = self._fs_parse_store_fname(fname)
+        attachment_id = attachment.id if attachment else None
+
+        try:
+            with fs.open(fname, "rb") as f:
+                return f.read()
+        except OSError as e:
+            _logger.info(
+                "Error reading %s on storage %s, trying filestore fallback",
+                fname,
+                _storage,
+                exc_info=True,
+            )
+
+        filestore_data = self._read_from_filestore(fname)
+        if filestore_data is not None:
+            _logger.warning(
+                "Attachment %s: File %s found in filestore but not in object storage %s. "
+                "Migrating now.",
+                attachment_id,
+                fname,
+                _storage,
+            )
+            new_fname = self._migrate_filestore_to_object_storage(
+                filestore_data, _storage
+            )
+            if attachment and new_fname:
+                attachment.write({"store_fname": new_fname, "is_missing": False})
+            return filestore_data
+
+        _logger.error(
+            "Attachment %s: File %s missing from both object storage (%s) and filestore. "
+            "Marking as missing.",
+            attachment_id,
+            fname,
+            _storage,
+        )
+        if attachment:
+            attachment.sudo().write({"is_missing": True})
+
+        return b""
+
+    @api.model
+    def _read_from_filestore(self, fname: str) -> bytes | None:
+        """Try to read a file from the Odoo filestore.
+
+        This method checks if the file exists in the filestore (legacy storage)
+        and returns its content if found.
+
+        :param fname: The relative path of the file in the filestore
+        :return: The file content as bytes, or None if not found
+        """
+        try:
+            filestore_path = os.path.join(self._filestore(), fname)
+            if os.path.exists(filestore_path):
+                with open(filestore_path, "rb") as f:
+                    return f.read()
+        except OSError:
+            _logger.info(
+                "Error reading %s from filestore", fname, exc_info=True
+            )
+        return None
+
+    @api.model
+    def _migrate_filestore_to_object_storage(
+        self, bin_data: bytes, storage_code: str
+    ) -> str | None:
+        """Migrate a file from filestore to object storage.
+
+        :param bin_data: The file content to write
+        :param storage_code: The target storage code (e.g., 'minio-prod')
+        :return: The new store_fname, or None if write failed
+        """
+        try:
+            fs = self._get_fs_storage_for_code(storage_code)
+            path = self._get_fs_path(storage_code, bin_data)
+            dirname = os.path.dirname(path)
+            if not fs.exists(dirname):
+                fs.makedirs(dirname)
+            fname = f"{storage_code}://{path}"
+            kwargs = self._storage_write_option(fs)
+            with fs.open(path, "wb", **kwargs) as f:
+                f.write(bin_data)
+            self._fs_mark_for_gc(fname)
+            return fname
+        except OSError:
+            _logger.info(
+                "Error migrating file to storage %s", storage_code, exc_info=True
+            )
+        return None
 
     def _storage_write_option(self, fs):
         return {}
@@ -1046,22 +1164,68 @@ class AttachmentFileLikeAdapter:
                 fs, _storage, fname = self.attachment._get_fs_parts()
                 filepath = fname
                 filesystem = fs
+                try:
+                    the_file = filesystem.open(
+                        filepath,
+                        mode=self.mode,
+                        block_size=self.block_size,
+                        cache_options=self.cache_options,
+                        compression=self.compression,
+                        **self.kwargs,
+                    )
+                except OSError:
+                    _logger.info(
+                        "Error reading %s on storage %s, trying filestore fallback",
+                        filepath,
+                        _storage,
+                        exc_info=True,
+                    )
+                    filestore_data = self.attachment._read_from_filestore(filepath)
+                    if filestore_data is not None:
+                        _logger.info(
+                            "Found file %s in filestore, migrating to storage %s",
+                            filepath,
+                            _storage,
+                        )
+                        new_fname = self.attachment._migrate_filestore_to_object_storage(
+                            filestore_data, _storage
+                        )
+                        if new_fname:
+                            self.attachment.write({"store_fname": new_fname})
+                        the_file = filesystem.open(
+                            filepath,
+                            mode=self.mode,
+                            block_size=self.block_size,
+                            cache_options=self.cache_options,
+                            compression=self.compression,
+                            **self.kwargs,
+                        )
+                    else:
+                        raise
             elif self.attachment.store_fname:
                 filepath = self.attachment._full_path(self.attachment.store_fname)
                 filesystem = fsspec.filesystem("file")
+                the_file = filesystem.open(
+                    filepath,
+                    mode=self.mode,
+                    block_size=self.block_size,
+                    cache_options=self.cache_options,
+                    compression=self.compression,
+                    **self.kwargs,
+                )
             else:
                 filepath = f"{self.attachment.id}"
                 filesystem = fsspec.filesystem("memory")
                 if "a" in self.mode or self._is_open_for_read:
                     filesystem.pipe_file(filepath, self.attachment.db_datas)
-            the_file = filesystem.open(
-                filepath,
-                mode=self.mode,
-                block_size=self.block_size,
-                cache_options=self.cache_options,
-                compression=self.compression,
-                **self.kwargs,
-            )
+                the_file = filesystem.open(
+                    filepath,
+                    mode=self.mode,
+                    block_size=self.block_size,
+                    cache_options=self.cache_options,
+                    compression=self.compression,
+                    **self.kwargs,
+                )
         else:
             # mode='w' and new_version=True and storage != 'db'
             # We must create a new file with a new name. If we are in an

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- Wizard Form View -->
+        <record id="fs_attachment_migration_wizard_view_form" model="ir.ui.view">
+            <field name="name">fs.attachment.migration.wizard.form</field>
+            <field name="model">fs.attachment.migration.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Migrate Attachments to Object Storage">
+                    <group>
+                        <group>
+                            <field name="storage_id" />
+                        </group>
+                        <group>
+                            <field name="pending_count" />
+                        </group>
+                    </group>
+                    <group invisible="not migration_status">
+                        <field name="migration_status" nolabel="1" />
+                    </group>
+                    <footer>
+                        <button
+                            name="action_migrate"
+                            type="object"
+                            string="Migrate Now"
+                            class="btn-primary"
+                            invisible="pending_count &lt;= 0"
+                        />
+                        <button string="Cancel" class="btn-secondary" special="cancel" />
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <!-- Wizard Action -->
+        <record id="fs_attachment_migration_wizard_action" model="ir.actions.act_window">
+            <field name="name">Migrate Attachments to Object Storage</field>
+            <field name="res_model">fs.attachment.migration.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'form', 'view_id': ref('fs_attachment_migration_wizard_view_form')})]" />
+            <field name="target">new</field>
+        </record>
+
+    </data>
+</odoo>

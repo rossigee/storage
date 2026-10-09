@@ -340,12 +340,7 @@ class FsStorage(models.Model):
                 .search([("model", "=", res_model), ("name", "=", res_field)], limit=1)
             )
             if field:
-                storage = (
-                    self.env["fs.storage"]
-                    .sudo()
-                    .search([])
-                    .filtered_domain([("field_ids", "in", [field.id])])
-                )
+                storage = self._search_storages_scoped_by_field(field)
                 if storage:
                     return storage.code
         if res_model:
@@ -353,12 +348,7 @@ class FsStorage(models.Model):
                 self.env["ir.model"].sudo().search([("model", "=", res_model)], limit=1)
             )
             if model:
-                storage = (
-                    self.env["fs.storage"]
-                    .sudo()
-                    .search([])
-                    .filtered_domain([("model_ids", "in", [model.id])])
-                )
+                storage = self._search_storages_scoped_by_model(model)
                 if storage:
                     return storage.code
 
@@ -370,6 +360,50 @@ class FsStorage(models.Model):
         if storages:
             return storages[0].code
         return None
+
+    def _search_storages_scoped_by_field(self, field):
+        """Return ``fs.storage`` records whose ``field_ids`` target ``field``.
+
+        Defensive against schema drift: if the ``field_ids`` column is missing
+        from the live ``fs_storage`` table (e.g. an upgrade was applied that
+        registered the field but failed to add the underlying SQL column), the
+        ``filtered_domain`` call would raise ``InvalidFieldError``. Without a
+        fallback that would either crash every ``ir.attachment.create`` with a
+        matching ``(res_model, res_field)`` context, or — far worse — return
+        ``None`` from this method and silently fall through to Odoo's default
+        local-filestore path, leaving the attachment orphan with no MinIO
+        storage prefix, no ``fs_filename`` and no ``db_datas``.
+        """
+        try:
+            return (
+                self.env["fs.storage"]
+                .sudo()
+                .search([])
+                .filtered_domain([("field_ids", "in", [field.id])])
+            )
+        except Exception:
+            _logger.info(
+                "fs.storage.field_ids unavailable, falling back to default storage",
+                exc_info=True,
+            )
+            return None
+
+    def _search_storages_scoped_by_model(self, model):
+        """See :meth:`_search_storages_scoped_by_field`; same defensive wrapper
+        for the model-scoped lookup using ``fs.storage.model_ids``."""
+        try:
+            return (
+                self.env["fs.storage"]
+                .sudo()
+                .search([])
+                .filtered_domain([("model_ids", "in", [model.id])])
+            )
+        except Exception:
+            _logger.info(
+                "fs.storage.model_ids unavailable, falling back to default storage",
+                exc_info=True,
+            )
+            return None
 
     @api.model
     @tools.ormcache("code")

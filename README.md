@@ -22,6 +22,8 @@ Available addons
 addon | version | maintainers | summary
 --- | --- | --- | ---
 [fs_attachment](fs_attachment/) | 17.0.1.6.2 | <a href='https://github.com/lmignon'><img src='https://github.com/lmignon.png' width='32' height='32' style='border-radius:50%;' alt='lmignon'/></a> | Store attachments on external object store
+[fs_attachment_migration](fs_attachment_migration/) | 17.0.1.0.1 | <a href='https://github.com/rossigee'><img src='https://github.com/rossigee.png' width='32' height='32' style='border-radius:50%;' alt='rossigee'/></a> | Wizard to migrate filestore-stored attachments to object storage
+[fs_attachment_minio](fs_attachment_minio/) | 17.0.1.0.0 | <a href='https://github.com/rossigee'><img src='https://github.com/rossigee.png' width='32' height='32' style='border-radius:50%;' alt='rossigee'/></a> | Store attachments into MinIO filesystem
 [fs_attachment_s3](fs_attachment_s3/) | 17.0.1.3.0 | <a href='https://github.com/lmignon'><img src='https://github.com/lmignon.png' width='32' height='32' style='border-radius:50%;' alt='lmignon'/></a> | Store attachments into S3 complient filesystem
 [fs_base_multi_image](fs_base_multi_image/) | 17.0.1.0.1 | <a href='https://github.com/lmignon'><img src='https://github.com/lmignon.png' width='32' height='32' style='border-radius:50%;' alt='lmignon'/></a> | Mulitple Images from External File System
 [fs_base_multi_media](fs_base_multi_media/) | 17.0.1.0.0 | <a href='https://github.com/lmignon'><img src='https://github.com/lmignon.png' width='32' height='32' style='border-radius:50%;' alt='lmignon'/></a> | Give the possibility to store media data in external filesystem from odoo
@@ -33,8 +35,13 @@ addon | version | maintainers | summary
 [fs_product_multi_image](fs_product_multi_image/) | 17.0.1.0.1 | <a href='https://github.com/lmignon'><img src='https://github.com/lmignon.png' width='32' height='32' style='border-radius:50%;' alt='lmignon'/></a> | Manage multi images from extenal file system on product
 [fs_product_multi_media](fs_product_multi_media/) | 17.0.1.0.0 | <a href='https://github.com/lmignon'><img src='https://github.com/lmignon.png' width='32' height='32' style='border-radius:50%;' alt='lmignon'/></a> | Link media to products and categories
 [fs_storage](fs_storage/) | 17.0.2.1.1 |  | Implement the concept of Storage with amazon S3, sftp...
+[fs_storage_minio](fs_storage_minio/) | 17.0.1.0.0 | <a href='https://github.com/rossigee'><img src='https://github.com/rossigee.png' width='32' height='32' style='border-radius:50%;' alt='rossigee'/></a> | MinIO filesystem for fs_storage
+[fs_webdav_upload](fs_webdav_upload/) | 17.0.1.0.2 | <a href='https://github.com/rossigee'><img src='https://github.com/rossigee.png' width='32' height='32' style='border-radius:50%;' alt='rossigee'/></a> | Accept WebDAV PUT uploads into object storage
 [image_tag](image_tag/) | 17.0.1.0.0 |  | Image tag model
+[minio_webhook_ingest](minio_webhook_ingest/) | 17.0.1.0.0 | <a href='https://github.com/rossigee'><img src='https://github.com/rossigee.png' width='32' height='32' style='border-radius:50%;' alt='rossigee'/></a> | Ingest MinIO bucket webhooks as attachments
 [storage_backend](storage_backend/) | 17.0.1.0.0 |  | Implement the concept of Storage with amazon S3, sftp...
+[storage_backend_s3](storage_backend_s3/) | 17.0.1.0.0 |  | Amazon S3 storage backend
+[storage_backend_minio](storage_backend_minio/) | 17.0.1.0.0 | <a href='https://github.com/rossigee'><img src='https://github.com/rossigee.png' width='32' height='32' style='border-radius:50%;' alt='rossigee'/></a> | MinIO storage backend
 [storage_backend_sftp](storage_backend_sftp/) | 17.0.1.0.0 |  | Implement SFTP Storage
 
 [//]: # (end addons)
