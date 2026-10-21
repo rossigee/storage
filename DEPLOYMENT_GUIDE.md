@@ -2,7 +2,8 @@
 
 ## Overview
 
-This guide covers deploying the new genuine MinIO storage implementation to production. The implementation is **fully tested and production-ready** as of 2026-06-21.
+This guide covers deploying the new genuine MinIO storage implementation to production.
+The implementation is **fully tested and production-ready** as of 2026-06-21.
 
 **Status**: ✅ Ready for production deployment
 
@@ -13,6 +14,7 @@ This guide covers deploying the new genuine MinIO storage implementation to prod
 You need a running MinIO instance. Options:
 
 #### Option A: Self-Hosted MinIO
+
 ```bash
 # Docker (recommended)
 docker run -d \
@@ -29,6 +31,7 @@ helm install minio minio/minio --values values.yaml
 ```
 
 #### Option B: Cloud-Hosted MinIO
+
 - AWS S3 (S3-compatible via custom endpoint)
 - Wasabi
 - DigitalOcean Spaces
@@ -53,6 +56,7 @@ helm install minio minio/minio --values values.yaml
 ### 1. Install Modules
 
 Option A: Git clone (development)
+
 ```bash
 cd /path/to/odoo/addons
 git clone https://github.com/OCA/storage.git
@@ -61,6 +65,7 @@ git checkout 18.0-minio  # or 17.0-minio, 16.0-minio
 ```
 
 Option B: Direct installation
+
 ```bash
 pip install git+https://github.com/OCA/storage.git@18.0-minio
 ```
@@ -68,6 +73,7 @@ pip install git+https://github.com/OCA/storage.git@18.0-minio
 ### 2. Update Odoo Add-ons Path
 
 Edit `~/.odoorc` or your Odoo configuration:
+
 ```ini
 [options]
 addons_path = /path/to/storage,/path/to/other/addons
@@ -76,11 +82,13 @@ addons_path = /path/to/storage,/path/to/other/addons
 ### 3. Install Modules in Odoo
 
 Via command line:
+
 ```bash
 odoo -d your-database -c ~/.odoorc -i fs_storage_minio,fs_attachment_minio --stop-after-init
 ```
 
 Or via Odoo web interface:
+
 1. Go to **Apps**
 2. Search for "MinIO"
 3. Install **fs_storage_minio** first
@@ -92,6 +100,7 @@ Or via Odoo web interface:
 1. Go to **Storage > Storage Backends**
 2. Click **New**
 3. Fill in:
+
    - **Name**: "Production MinIO" (or your name)
    - **Code**: "minio-prod" (unique identifier)
    - **Protocol**: "minio"
@@ -118,6 +127,7 @@ env['ir.config_parameter'].set_param(
 ```
 
 Or in configuration file:
+
 ```ini
 [options]
 ir_attachment_storage_location = minio-prod
@@ -175,6 +185,7 @@ env['ir.config_parameter'].set_param(
 For efficient file serving via nginx:
 
 **Nginx configuration:**
+
 ```nginx
 location ~ ^/fs_x_sendfile/https?/(.*?)/(.*)$ {
     internal;
@@ -188,6 +199,7 @@ location ~ ^/fs_x_sendfile/https?/(.*?)/(.*)$ {
 **Odoo configuration:**
 
 Go to **Storage > Storage Backends** > Your MinIO storage:
+
 - ✅ Check **Use X-Accel-Redirect to serve internal URL**
 - ✅ Check **Use signed URL for X-Accel-Redirect** (for time-limited URLs)
 - Set **Signed URL Expiration** (default: 30 seconds)
@@ -195,6 +207,7 @@ Go to **Storage > Storage Backends** > Your MinIO storage:
 ### 8. Verify Deployment
 
 Test in Odoo:
+
 ```python
 # In Odoo shell
 env = api.Environment(cr, uid, context)
@@ -238,17 +251,20 @@ print("✓ Attachment retrieved successfully")
 Set up monitoring for:
 
 **MinIO metrics:**
+
 - Bucket size: `du -sh /data`
 - Object count: `mc du minio-prod`
 - Read/write operations
 - Disk usage
 
 **Odoo logs:**
+
 ```bash
 tail -f /var/log/odoo/odoo-server.log | grep -i "minio\|attachment"
 ```
 
 **System resources:**
+
 ```bash
 # Monitor during heavy attachment usage
 watch -n 1 'ps aux | grep odoo; df -h'
@@ -259,11 +275,13 @@ watch -n 1 'ps aux | grep odoo; df -h'
 ### Module Installation Fails
 
 **Error**: "No module named fsspec"
+
 ```bash
 pip install fsspec s3fs
 ```
 
 **Error**: "minio not installed"
+
 ```bash
 pip install minio
 ```
@@ -271,6 +289,7 @@ pip install minio
 ### Storage Backend Test Fails
 
 **"Connection refused"**: MinIO not accessible
+
 ```bash
 # Verify MinIO is running
 curl http://your-minio-endpoint:9000/minio/health/live
@@ -283,6 +302,7 @@ nslookup your-minio-endpoint
 ```
 
 **"Access Denied"**: Wrong credentials
+
 ```bash
 # Verify with MinIO client
 mc alias set test-alias http://your-endpoint access-key secret-key
@@ -290,12 +310,14 @@ mc ls test-alias
 ```
 
 **"SSL: CERTIFICATE_VERIFY_FAILED"**: TLS issue
+
 - Check **Secure** setting matches your setup (HTTP=unchecked, HTTPS=checked)
 - Verify certificate is valid: `openssl s_client -connect your-endpoint:9000`
 
 ### Attachment Upload Fails
 
 **"Permission denied"**: MinIO user lacks permissions
+
 ```bash
 # Verify bucket exists and is accessible
 mc ls minio-alias/bucket-name
@@ -305,6 +327,7 @@ mc ls minio-alias/bucket-name
 ```
 
 **"Connection timeout"**: Network issue
+
 ```bash
 # Test connectivity from Odoo server
 telnet your-minio-endpoint 9000
@@ -313,12 +336,14 @@ telnet your-minio-endpoint 9000
 ### Performance Issues
 
 **Slow uploads/downloads**:
+
 - Check MinIO disk I/O: `iostat -x 1`
 - Check network latency: `ping your-minio-endpoint`
 - Verify MinIO resource limits
 - Check Odoo logs for errors
 
 **High memory usage**:
+
 - File buffering happens in memory
 - Large files (>500MB) may cause issues
 - Consider setting upload size limits in Odoo
@@ -351,6 +376,7 @@ telnet your-minio-endpoint 9000
 ### Backup Strategy
 
 **Option A: MinIO Native**
+
 ```bash
 # Backup to S3
 mc mirror minio-prod/bucket s3/backup-bucket
@@ -360,12 +386,14 @@ mc mirror minio-prod/bucket minio-backup/bucket
 ```
 
 **Option B: File System**
+
 ```bash
 # If using local storage
 rsync -av /data /backup/minio-daily-$(date +%Y%m%d)
 ```
 
 **Option C: Database**
+
 ```bash
 # Backup Odoo database (stores file references)
 pg_dump odoo-database > /backup/odoo-$(date +%Y%m%d).sql
@@ -374,11 +402,13 @@ pg_dump odoo-database > /backup/odoo-$(date +%Y%m%d).sql
 ### Recovery
 
 If MinIO data is lost but database intact:
+
 1. Restore MinIO data from backup
 2. Odoo will find attachments automatically (by store_fname)
 3. If MinIO lost but DB intact: recover MinIO data, then restore to Odoo
 
 If both lost:
+
 1. Restore database from backup
 2. Restore MinIO data from backup
 3. Re-link if necessary
@@ -388,16 +418,19 @@ If both lost:
 ### Regular Tasks
 
 **Daily:**
+
 - Monitor MinIO health: `curl localhost:9000/minio/health/live`
 - Check disk usage: `df -h /data`
 - Review Odoo logs for errors
 
 **Weekly:**
+
 - Verify attachment creation/retrieval working
 - Check MinIO performance metrics
 - Review resource usage
 
 **Monthly:**
+
 - Backup verification (test restore)
 - Disk usage trending
 - Security audit (logs, access patterns)
@@ -405,6 +438,7 @@ If both lost:
 ### Upgrades
 
 **MinIO Upgrade:**
+
 ```bash
 # Stop old instance
 docker stop minio
@@ -417,6 +451,7 @@ docker run -d ... minio/minio:latest ...
 ```
 
 **Odoo Module Update:**
+
 ```bash
 # Pull latest code
 cd /path/to/storage && git pull origin 18.0-minio
@@ -457,19 +492,12 @@ Before going live:
 
 Your MinIO deployment is successful when:
 
-✅ Attachments are reliably stored and retrieved  
-✅ Files appear in MinIO bucket  
-✅ No boto3/aiobotocore in logs  
-✅ Native minio SDK is being used  
-✅ X-Accel-Redirect works (if configured)  
-✅ Performance meets or exceeds S3 baseline  
-✅ Backups are automated and tested  
-✅ Monitoring is active and alerting on issues  
-✅ Team is confident in the system  
+✅ Attachments are reliably stored and retrieved ✅ Files appear in MinIO bucket ✅ No
+boto3/aiobotocore in logs ✅ Native minio SDK is being used ✅ X-Accel-Redirect works
+(if configured) ✅ Performance meets or exceeds S3 baseline ✅ Backups are automated and
+tested ✅ Monitoring is active and alerting on issues ✅ Team is confident in the system
 
 ---
 
-**Deployment Date**: [Fill in]  
-**Deployed By**: [Fill in]  
-**Status**: Production  
-**Next Review**: [Fill in]
+**Deployment Date**: [Fill in] **Deployed By**: [Fill in] **Status**: Production **Next
+Review**: [Fill in]

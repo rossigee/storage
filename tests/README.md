@@ -1,14 +1,18 @@
 # MinIO Regression Tests
 
-This directory contains regression tests for the MinIO implementation across all three modules:
+This directory contains regression tests for the MinIO implementation across all three
+modules:
+
 - `fs_storage_minio`: fsspec filesystem backend
-- `fs_attachment_minio`: Odoo attachment storage integration  
+- `fs_attachment_minio`: Odoo attachment storage integration
 - `storage_backend_minio`: Legacy storage backend adapter
 
 ## Quick Start
 
 ### Option 1: Automatic (recommended)
+
 Run the provided shell script, which will:
+
 1. Check if MinIO is already running
 2. Start a MinIO container if needed (requires Docker)
 3. Run the full test suite
@@ -19,6 +23,7 @@ Run the provided shell script, which will:
 ```
 
 ### Option 2: Manual Setup
+
 If you prefer to manage MinIO yourself:
 
 ```bash
@@ -33,6 +38,7 @@ python3 tests/test_minio_regression.py
 ```
 
 ### Option 3: Against Remote MinIO
+
 Point to an existing MinIO server:
 
 ```bash
@@ -46,10 +52,12 @@ python3 tests/test_minio_regression.py
 ## Test Coverage
 
 ### TestMinioConnection
+
 - ✓ Basic connectivity to MinIO server
 - ✓ Can list buckets
 
 ### TestMinioFileSystem
+
 - ✓ Path splitting (bucket/key extraction)
 - ✓ Write and read file content
 - ✓ File existence checking
@@ -59,17 +67,18 @@ python3 tests/test_minio_regression.py
 - ✓ Getting file size
 
 ### TestPresignedURLs
+
 - ✓ Generate presigned GET URLs (time-limited read access)
 - ✓ Generate presigned PUT URLs (time-limited write access)
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MINIO_ENDPOINT` | `localhost:9000` | MinIO server address |
-| `MINIO_ACCESS_KEY` | `minioadmin` | Access key for authentication |
-| `MINIO_SECRET_KEY` | `minioadmin` | Secret key for authentication |
-| `MINIO_SECURE` | `false` | Use HTTPS (`true` or `false`) |
+| Variable           | Default          | Description                   |
+| ------------------ | ---------------- | ----------------------------- |
+| `MINIO_ENDPOINT`   | `localhost:9000` | MinIO server address          |
+| `MINIO_ACCESS_KEY` | `minioadmin`     | Access key for authentication |
+| `MINIO_SECRET_KEY` | `minioadmin`     | Secret key for authentication |
+| `MINIO_SECURE`     | `false`          | Use HTTPS (`true` or `false`) |
 
 ## Requirements
 
@@ -81,18 +90,25 @@ python3 tests/test_minio_regression.py
 ## Troubleshooting
 
 ### "Connection refused"
+
 MinIO is not running. Either:
+
 - Start MinIO manually with Docker (see Quick Start Option 2)
-- Check that the endpoint is correct: `MINIO_ENDPOINT=your-endpoint python3 tests/test_minio_regression.py`
+- Check that the endpoint is correct:
+  `MINIO_ENDPOINT=your-endpoint python3 tests/test_minio_regression.py`
 
 ### "Access Denied"
+
 Wrong credentials. Set the correct access key and secret:
+
 ```bash
 MINIO_ACCESS_KEY=correct-key MINIO_SECRET_KEY=correct-secret python3 tests/test_minio_regression.py
 ```
 
 ### Port already in use
+
 If 9000 is already in use, map to a different port:
+
 ```bash
 docker run -d -p 9001:9000 -p 9002:9001 \
   -e MINIO_ROOT_USER=minioadmin \
@@ -105,6 +121,7 @@ MINIO_ENDPOINT=localhost:9001 python3 tests/test_minio_regression.py
 ## What the Tests Validate
 
 1. **fs_storage_minio**: The new fsspec filesystem backend
+
    - Can connect to MinIO
    - Can write/read files
    - Can list objects
@@ -113,6 +130,7 @@ MINIO_ENDPOINT=localhost:9001 python3 tests/test_minio_regression.py
    - File operations return correct sizes
 
 2. **Presigned URLs**: Critical for X-Accel-Redirect support in fs_attachment_minio
+
    - Can generate time-limited GET URLs
    - Can generate time-limited PUT URLs
    - URLs contain correct bucket/key and signature
@@ -137,7 +155,8 @@ To run in CI/CD pipeline:
 
 ## Notes
 
-- Tests create and clean up their own test buckets (`test-fs-regression`, `test-presigned`)
+- Tests create and clean up their own test buckets (`test-fs-regression`,
+  `test-presigned`)
 - No external data is modified
 - All tests are idempotent and can be run multiple times safely
 - Tests take ~10-30 seconds depending on network latency

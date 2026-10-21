@@ -1,4 +1,5 @@
 import logging
+
 from odoo import _, api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -10,11 +11,11 @@ class MinioWebhookEvent(models.Model):
     _description = "MinIO Webhook Event"
     _order = "create_date DESC"
 
-    event_type = fields.Char(string="Event Type", help="e.g. s3:ObjectCreated:Put")
-    bucket = fields.Char(string="Bucket", help="MinIO bucket name")
-    object_key = fields.Char(string="Object Key", help="MinIO object key (URL-encoded)")
+    event_type = fields.Char(help="e.g. s3:ObjectCreated:Put")
+    bucket = fields.Char(help="MinIO bucket name")
+    object_key = fields.Char(help="MinIO object key (URL-encoded)")
     size = fields.Integer(string="Size (bytes)")
-    content_type = fields.Char(string="Content Type")
+    content_type = fields.Char()
     e_tag = fields.Char(string="E-Tag")
     status = fields.Selection(
         [
@@ -23,7 +24,6 @@ class MinioWebhookEvent(models.Model):
             ("failed", "Failed"),
             ("rejected", "Rejected"),
         ],
-        string="Status",
         default="received",
         index=True,
     )
@@ -31,7 +31,7 @@ class MinioWebhookEvent(models.Model):
         "ir.attachment", string="Attachment", index=True, ondelete="set null"
     )
     job_uuid = fields.Char(string="Job UUID", index=True)
-    detail = fields.Text(string="Detail")
+    detail = fields.Text()
     remote_addr = fields.Char(string="Remote Address")
     create_date = fields.Datetime(string="Received At", index=True)
 

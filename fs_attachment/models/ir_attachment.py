@@ -95,7 +95,8 @@ class IrAttachment(models.Model):
     is_missing = fields.Boolean(
         string="Missing from Storage",
         default=False,
-        help="Set to True when the file is missing from both object storage and filestore. "
+        help="Set to True when the file is missing from both object storage and "
+        "filestore. "
         "This indicates a broken attachment that cannot be served.",
     )
 
@@ -409,7 +410,7 @@ class IrAttachment(models.Model):
 
     @api.model
     def _storage_file_read_with_fallback(
-        self, fname: str, attachment: "ir.attachment" | None = None
+        self, fname: str, attachment: IrAttachment | None = None
     ) -> bytes | None:
         """Read the file from the filesystem storage with fallback to filestore.
 
@@ -426,7 +427,7 @@ class IrAttachment(models.Model):
         try:
             with fs.open(fname, "rb") as f:
                 return f.read()
-        except OSError as e:
+        except OSError:
             _logger.info(
                 "Error reading %s on storage %s, trying filestore fallback",
                 fname,
@@ -437,7 +438,8 @@ class IrAttachment(models.Model):
         filestore_data = self._read_from_filestore(fname)
         if filestore_data is not None:
             _logger.warning(
-                "Attachment %s: File %s found in filestore but not in object storage %s. "
+                "Attachment %s: File %s found in filestore but not in object "
+                "storage %s. "
                 "Migrating now.",
                 attachment_id,
                 fname,
@@ -451,7 +453,8 @@ class IrAttachment(models.Model):
             return filestore_data
 
         _logger.error(
-            "Attachment %s: File %s missing from both object storage (%s) and filestore. "
+            "Attachment %s: File %s missing from both object storage (%s) and "
+            "filestore. "
             "Marking as missing.",
             attachment_id,
             fname,
@@ -478,9 +481,7 @@ class IrAttachment(models.Model):
                 with open(filestore_path, "rb") as f:
                     return f.read()
         except OSError:
-            _logger.info(
-                "Error reading %s from filestore", fname, exc_info=True
-            )
+            _logger.info("Error reading %s from filestore", fname, exc_info=True)
         return None
 
     @api.model
@@ -1187,8 +1188,10 @@ class AttachmentFileLikeAdapter:
                             filepath,
                             _storage,
                         )
-                        new_fname = self.attachment._migrate_filestore_to_object_storage(
-                            filestore_data, _storage
+                        new_fname = (
+                            self.attachment._migrate_filestore_to_object_storage(
+                                filestore_data, _storage
+                            )
                         )
                         if new_fname:
                             self.attachment.write({"store_fname": new_fname})

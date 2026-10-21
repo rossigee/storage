@@ -20,4 +20,5 @@
         ],
     },
     "maintainers": ["sebastienbeau", "simon-orsi"],
+    "installable": False,
 }

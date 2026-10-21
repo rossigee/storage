@@ -5,7 +5,6 @@ from odoo import fields, models
 
 
 class FsStorage(models.Model):
-
     _inherit = "fs.storage"
 
     minio_uses_signed_url_for_x_sendfile = fields.Boolean(

@@ -104,11 +104,10 @@ class MinIOStorageAdapter(Component):
         try:
             objects = client.list_objects(bucket_name, prefix=prefix, recursive=True)
             return [
-                obj.object_name.replace(dir_path, "").lstrip("/")
-                for obj in objects
+                obj.object_name.replace(dir_path, "").lstrip("/") for obj in objects
             ]
         except S3Error as error:
-            _logger.exception(f"Error listing files in MinIO")
+            _logger.exception("Error listing files in MinIO")
             raise exceptions.UserError(
                 self.env._(f"Could not list files: {str(error)}")
             ) from error

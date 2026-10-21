@@ -51,8 +51,7 @@ class TestFSAttachmentMinio(TestFSAttachmentMinioCommon):
                 "/fs_x_sendfile/http/localhost:9000/"
                 "test-bucket/test-prefix/dir/sub/fake_minio_file.txt?"
             ),
-            "The presigned URL should include the directory prefix. "
-            f"({url})",
+            "The presigned URL should include the directory prefix. " f"({url})",
         )
 
     def test_is_minio_storage(self):
