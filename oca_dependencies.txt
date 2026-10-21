@@ -1,0 +1,2 @@
+# List the OCA project dependencies, one per line.
+queue

@@ -61,8 +61,14 @@ def _authenticate():
 
 
 class WebDAVUploadController(http.Controller):
-
-    @http.route('/upload/dav/<path:subpath>', type='http', auth='public', methods=['PUT', 'PROPFIND', 'MKCOL', 'OPTIONS'], csrf=False, priority=100)
+    @http.route(
+        "/upload/dav/<path:subpath>",
+        type="http",
+        auth="public",
+        methods=["PUT", "PROPFIND", "MKCOL", "OPTIONS"],
+        csrf=False,
+        priority=100,
+    )
     def handle_webdav_upload(self, subpath, **kwargs):
         """Handle WebDAV requests for bank statement uploads."""
         method = request.httprequest.method
@@ -71,33 +77,39 @@ class WebDAVUploadController(http.Controller):
         # Handle OPTIONS (pre-flight). Deliberately ahead of authentication:
         # a client must be able to discover capabilities before it has a
         # credential, and this response discloses nothing.
-        if method == 'OPTIONS':
-            return http.Response('', headers={
-                'Allow': 'PUT, GET, HEAD, DELETE, PROPFIND, MKCOL, MOVE, COPY, OPTIONS',
-                'DAV': '1,2',
-            })
+        if method == "OPTIONS":
+            return http.Response(
+                "",
+                headers={
+                    "Allow": "PUT, GET, HEAD, DELETE, PROPFIND, MKCOL, MOVE, "
+                    "COPY, OPTIONS",
+                    "DAV": "1,2",
+                },
+            )
 
         user, err = _authenticate()
         if err:
             return err
 
         # Handle PROPFIND (directory listing)
-        if method == 'PROPFIND':
-            return http.Response('', status=207, headers={'Content-Type': 'application/xml'})
+        if method == "PROPFIND":
+            return http.Response(
+                "", status=207, headers={"Content-Type": "application/xml"}
+            )
 
         # Handle MKCOL (directory creation)
-        if method == 'MKCOL':
-            return http.Response('', status=201)
+        if method == "MKCOL":
+            return http.Response("", status=201)
 
         # Handle PUT (file upload)
-        if method == 'PUT':
+        if method == "PUT":
             try:
-                parts = [p for p in subpath.rstrip('/').split('/') if p]
+                parts = [p for p in subpath.rstrip("/").split("/") if p]
                 if not parts:
                     return _json_error("No filename in path", 400)
                 if len(parts) > _MAX_PATH_DEPTH:
                     return _json_error("Path too deep", 400)
-                if any(p in ('.', '..') for p in parts):
+                if any(p in (".", "..") for p in parts):
                     return _json_error("Invalid path segment", 400)
                 filename = parts[-1]
 
@@ -129,49 +141,72 @@ class WebDAVUploadController(http.Controller):
                 if len(file_data) > _MAX_UPLOAD_BYTES:
                     return _json_error("File too large", 413)
 
-                attachment = request.env['ir.attachment'].with_user(user).sudo().create({
-                    'name': filename,
-                    'datas': base64.b64encode(file_data),
-                    'type': 'binary',
-                    'res_model': 'ir.attachment',
-                    'public': False,
-                })
+                attachment = (
+                    request.env["ir.attachment"]
+                    .with_user(user)
+                    .sudo()
+                    .create(
+                        {
+                            "name": filename,
+                            "datas": base64.b64encode(file_data),
+                            "type": "binary",
+                            "res_model": "ir.attachment",
+                            "public": False,
+                        }
+                    )
+                )
 
                 _logger.info(
                     "WebDAV upload successful: %s by user %s (attachment id: %s)",
-                    filename, user.login, attachment.id,
+                    filename,
+                    user.login,
+                    attachment.id,
                 )
-                return http.Response('', status=201, headers={
-                    'Location': f'/attachment/{attachment.id}',
-                })
+                return http.Response(
+                    "",
+                    status=201,
+                    headers={
+                        "Location": f"/attachment/{attachment.id}",
+                    },
+                )
             except Exception as e:
                 _logger.error(f"WebDAV upload failed: {str(e)}")
-                return http.Response(f'Upload failed: {str(e)}', status=500)
+                return http.Response(f"Upload failed: {str(e)}", status=500)
 
-        return http.Response('Method not allowed', status=405)
+        return http.Response("Method not allowed", status=405)
 
-    @http.route('/contact/submit', type='http', auth='public', methods=['POST'], csrf=False)
+    @http.route(
+        "/contact/submit", type="http", auth="public", methods=["POST"], csrf=False
+    )
     def handle_contact_form(self, **post):
         """Handle contact form submission."""
         try:
-            name = post.get('name', '').strip()
-            email = post.get('email', '').strip()
-            message = post.get('message', '').strip()
+            name = post.get("name", "").strip()
+            email = post.get("email", "").strip()
+            message = post.get("message", "").strip()
 
             if not all([name, email, message]):
-                return http.Response('Missing required fields', status=400)
+                return http.Response("Missing required fields", status=400)
 
             # Send email via mail.mail
             mail_values = {
-                'subject': f'New Contact Form Submission from {name}',
-                'body_html': f'<p><strong>Name:</strong> {name}</p><p><strong>Email:</strong> {email}</p><p><strong>Message:</strong></p><p>{message.replace(chr(10), "<br/>")}</p>',
-                'email_from': email,
-                'email_to': request.env.user.company_id.email or 'contact@example.com',
+                "subject": f"New Contact Form Submission from {name}",
+                "body_html": (
+                    f'<p><strong>Name:</strong> {name}</p>'
+                    f'<p><strong>Email:</strong> {email}</p>'
+                    f'<p><strong>Message:</strong></p>'
+                    f'<p>{message.replace(chr(10), "<br/>")}</p>'
+                ),
+                "email_from": email,
+                "email_to": request.env.user.company_id.email or "contact@example.com",
             }
-            request.env['mail.mail'].sudo().create(mail_values).send()
+            request.env["mail.mail"].sudo().create(mail_values).send()
 
             _logger.info(f"Contact form submitted by {name} ({email})")
-            return http.Response('<h1>Thank you!</h1><p>Your message has been sent successfully.</p>', status=200)
+            return http.Response(
+                "<h1>Thank you!</h1><p>Your message has been sent successfully.</p>",
+                status=200,
+            )
         except Exception as e:
             _logger.error(f"Contact form error: {str(e)}")
-            return http.Response(f'Error: {str(e)}', status=500)
+            return http.Response(f"Error: {str(e)}", status=500)

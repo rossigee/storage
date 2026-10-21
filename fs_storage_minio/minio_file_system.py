@@ -3,13 +3,10 @@
 
 import io
 import logging
-from datetime import timedelta
 
-import fsspec
 import urllib3
 from fsspec.registry import register_implementation
 from fsspec.spec import AbstractFileSystem
-from fsspec.utils import infer_storage_options
 
 _logger = logging.getLogger(__name__)
 
@@ -62,7 +59,7 @@ class MinioFile(io.BytesIO):
         """Flush data to MinIO on close if in write mode."""
         if "w" in self.mode or "a" in self.mode:
             self._flush_to_minio()
-        super().close()
+        return super().close()
 
     def _flush_to_minio(self):
         """Flush buffered data to MinIO."""
@@ -81,7 +78,7 @@ class MinioFile(io.BytesIO):
                 length=len(data),
                 metadata=extra_args,
             )
-        except S3Error as e:
+        except S3Error:
             _logger.exception(f"Error writing file {self.path} to MinIO")
             raise
 
@@ -118,7 +115,7 @@ class MinioFileSystem(AbstractFileSystem):
         secure=True,
         region=None,
         session_token=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.endpoint = endpoint
@@ -129,7 +126,7 @@ class MinioFileSystem(AbstractFileSystem):
         self.session_token = session_token
 
         try:
-            http_client = urllib3.PoolManager(cert_reqs='CERT_NONE')
+            http_client = urllib3.PoolManager(cert_reqs="CERT_NONE")
             self.client = Minio(
                 endpoint,
                 access_key=access_key,
@@ -139,7 +136,7 @@ class MinioFileSystem(AbstractFileSystem):
                 region=self.region,
                 http_client=http_client,
             )
-        except Exception as e:
+        except Exception:
             _logger.exception("Error initializing MinIO client")
             raise
 
@@ -227,9 +224,9 @@ class MinioFileSystem(AbstractFileSystem):
             }
         except S3Error as e:
             if e.code == "NoSuchKey":
-                raise FileNotFoundError(f"{path} not found")
+                raise FileNotFoundError(f"{path} not found") from e
             elif e.code == "NoSuchBucket":
-                raise FileNotFoundError(f"Bucket {bucket} not found")
+                raise FileNotFoundError(f"Bucket {bucket} not found") from e
             raise
 
     def exists(self, path, **kwargs):
@@ -317,7 +314,7 @@ class MinioFileSystem(AbstractFileSystem):
             return
         try:
             self.client.put_object(bucket, key, io.BytesIO(b""), length=0)
-        except S3Error as e:
+        except S3Error:
             raise
 
     def mv(self, path1, path2, **kwargs):
@@ -329,7 +326,7 @@ class MinioFileSystem(AbstractFileSystem):
             copy_source = CopySource(bucket1, key1)
             self.client.copy_object(bucket2, key2, copy_source)
             self.client.remove_object(bucket1, key1)
-        except S3Error as e:
+        except S3Error:
             _logger.exception(f"Error moving {path1} to {path2}")
             raise
 
@@ -345,7 +342,7 @@ class MinioFileSystem(AbstractFileSystem):
             return stat.etag
         except S3Error as e:
             if e.code == "NoSuchKey":
-                raise FileNotFoundError(f"{path} not found")
+                raise FileNotFoundError(f"{path} not found") from e
             raise
 
     def size(self, path):
@@ -356,7 +353,7 @@ class MinioFileSystem(AbstractFileSystem):
             return stat.size
         except S3Error as e:
             if e.code == "NoSuchKey":
-                raise FileNotFoundError(f"{path} not found")
+                raise FileNotFoundError(f"{path} not found") from e
             raise
 
 

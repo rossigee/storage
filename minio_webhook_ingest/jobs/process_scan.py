@@ -1,5 +1,4 @@
 import logging
-from odoo import SUPERUSER_ID
 
 _logger = logging.getLogger(__name__)
 
