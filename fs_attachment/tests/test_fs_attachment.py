@@ -490,4 +490,3 @@ class TestFSAttachment(TestFSAttachmentCommon):
                 ("file_size", "<=", 100),
             ],
         )
-
