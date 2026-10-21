@@ -16,7 +16,7 @@
     ],
     "external_dependencies": {
         "python": [
-            "boto3",
+            "boto3>=1.26,<1.35",
         ],
     },
     "maintainers": ["sebastienbeau", "simon-orsi"],
