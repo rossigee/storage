@@ -12,7 +12,8 @@ This script tests the three MinIO-related modules:
 
 Requirements:
 - MinIO server running at localhost:9000 (or set MINIO_ENDPOINT env var)
-- Default credentials: minioadmin / minioadmin (or set MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
+- Default credentials: minioadmin / minioadmin (or set MINIO_ACCESS_KEY,
+  MINIO_SECRET_KEY)
 - Python 3.6+
 - minio package installed
 
@@ -20,7 +21,8 @@ Usage:
     python3 tests/test_minio_regression.py
 
     Or with custom endpoint:
-    MINIO_ENDPOINT=minio.example.com:9000 MINIO_ACCESS_KEY=key MINIO_SECRET_KEY=secret python3 tests/test_minio_regression.py
+    MINIO_ENDPOINT=minio.example.com:9000 MINIO_ACCESS_KEY=key \\
+    MINIO_SECRET_KEY=secret python3 tests/test_minio_regression.py
 """
 
 import io
@@ -28,14 +30,12 @@ import os
 import sys
 import unittest
 from datetime import timedelta
-from unittest.mock import MagicMock, patch
 
 # Add parent directory to path so we can import modules
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from minio import Minio
-    from minio.error import S3Error
 except ImportError:
     print("ERROR: minio package not installed. Install it with: pip install minio")
     sys.exit(1)
@@ -138,7 +138,7 @@ class TestMinioFileSystem(unittest.TestCase):
 
         # Should not exist yet
         self.assertFalse(self.fs.exists(test_path))
-        print(f"✓ File correctly reported as non-existent before creation")
+        print("✓ File correctly reported as non-existent before creation")
 
         # Create file
         with self.fs._open(test_path, "wb") as f:
@@ -146,7 +146,7 @@ class TestMinioFileSystem(unittest.TestCase):
 
         # Should exist now
         self.assertTrue(self.fs.exists(test_path))
-        print(f"✓ File correctly reported as existent after creation")
+        print("✓ File correctly reported as existent after creation")
 
     def test_ls(self):
         """Test listing files."""
@@ -179,7 +179,7 @@ class TestMinioFileSystem(unittest.TestCase):
 
         # Verify it's gone
         self.assertFalse(self.fs.exists(test_path))
-        print(f"✓ File successfully deleted")
+        print("✓ File successfully deleted")
 
     def test_touch(self):
         """Test creating empty file."""
@@ -190,7 +190,7 @@ class TestMinioFileSystem(unittest.TestCase):
 
         # Verify it exists
         self.assertTrue(self.fs.exists(test_path))
-        print(f"✓ Empty file created with touch()")
+        print("✓ Empty file created with touch()")
 
     def test_size(self):
         """Test getting file size."""

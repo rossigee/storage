@@ -3,7 +3,7 @@
 
 {
     "name": "FS Storage MinIO",
-    "summary": """MinIO filesystem backend for fs_storage using the official minio SDK""",
+    "summary": ("MinIO filesystem backend for fs_storage using the official minio SDK"),
     "version": "17.0.1.0.0",
     "license": "LGPL-3",
     "author": "Ross Golder",

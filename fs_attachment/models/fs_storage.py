@@ -3,12 +3,16 @@
 
 from __future__ import annotations
 
+import logging
+
 from odoo import _, api, fields, models, tools
 from odoo.exceptions import ValidationError
 from odoo.tools import SQL
 from odoo.tools.safe_eval import const_eval
 
 from .ir_attachment import IrAttachment
+
+_logger = logging.getLogger(__name__)
 
 
 class FsStorage(models.Model):

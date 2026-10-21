@@ -1,15 +1,12 @@
+import hashlib
+import hmac
 import json
 import logging
 import os
 from urllib.parse import unquote
 
-import hmac
-import hashlib
-
 from odoo import http
 from odoo.http import request
-
-
 
 _logger = logging.getLogger(__name__)
 
@@ -37,12 +34,16 @@ class MinioWebhookController(http.Controller):
     @staticmethod
     def _minio_config():
         return {
-            "endpoint": MinioWebhookController._get_config("minio_endpoint", "minio.golder.lan"),
+            "endpoint": MinioWebhookController._get_config(
+                "minio_endpoint", "minio.golder.lan"
+            ),
             "access_key": MinioWebhookController._get_config("minio_access_key", ""),
             "secret_key": MinioWebhookController._get_config("minio_secret_key", ""),
             "secure": MinioWebhookController._get_config("minio_secure", "true").lower()
             in ("true", "1", "yes"),
-            "bucket": MinioWebhookController._get_config("minio_bucket", "document-scans"),
+            "bucket": MinioWebhookController._get_config(
+                "minio_bucket", "document-scans"
+            ),
         }
 
     def _validate_ip(self):
@@ -73,7 +74,9 @@ class MinioWebhookController(http.Controller):
             return False
         timestamp = request.httprequest.headers.get("X-Webhook-Timestamp", "")
         signed_payload = (
-            f"{timestamp}{payload_bytes.decode('utf-8')}" if timestamp else payload_bytes.decode("utf-8")
+            f"{timestamp}{payload_bytes.decode('utf-8')}"
+            if timestamp
+            else payload_bytes.decode("utf-8")
         )
         expected = hmac.new(
             secret.encode("utf-8"),
@@ -85,7 +88,16 @@ class MinioWebhookController(http.Controller):
             return False
         return True
 
-    def _log_event(self, event_type, bucket, object_key, status, detail="", attachment_id=None, job_uuid=None):
+    def _log_event(
+        self,
+        event_type,
+        bucket,
+        object_key,
+        status,
+        detail="",
+        attachment_id=None,
+        job_uuid=None,
+    ):
         try:
             request.env["minio.webhook.event"].sudo().create(
                 {
