@@ -34,31 +34,16 @@ class MinIOStorageAdapter(Component):
         )
         return client
 
-    def _get_bucket(self):
-        client = self._get_client()
-        bucket_name = self.collection.minio_bucket
-
-        try:
-            if not client.bucket_exists(bucket_name):
-                client.make_bucket(bucket_name)
-        except S3Error as error:
-            _logger.exception("Error connecting to MinIO")
-            raise exceptions.UserError(str(error)) from error
-
-        return client.bucket(bucket_name)
-
     def add(self, relative_path, bin_data, mimetype=None, **kwargs):
         client = self._get_client()
         bucket_name = self.collection.minio_bucket
         full_path = self._fullpath(relative_path)
 
-        extra_args = {}
-        if mimetype:
-            extra_args["content_type"] = mimetype
+        # content_type is a put_object argument; headers such as Cache-Control go
+        # in metadata. MinIO does not take canned ACLs, so none is sent.
+        metadata = {}
         if self.collection.minio_cache_control:
-            extra_args["cache_control"] = self.collection.minio_cache_control
-        if self.collection.minio_file_acl:
-            extra_args["acl"] = self.collection.minio_file_acl
+            metadata["Cache-Control"] = self.collection.minio_cache_control
 
         try:
             data = io.BytesIO(bin_data)
@@ -67,8 +52,9 @@ class MinIOStorageAdapter(Component):
                 full_path,
                 data,
                 length=len(bin_data),
+                content_type=mimetype or "application/octet-stream",
                 part_size=5 * 1024 * 1024,
-                metadata=extra_args,
+                metadata=metadata or None,
             )
         except S3Error as error:
             _logger.exception(f"Error storing file {relative_path} to MinIO")
@@ -132,11 +118,15 @@ class MinIOStorageAdapter(Component):
         client = self._get_client()
         bucket_name = self.collection.minio_bucket
 
+        # Validation only checks; it must not create buckets as a side effect
         try:
-            if not client.bucket_exists(bucket_name):
-                client.make_bucket(bucket_name)
+            exists = client.bucket_exists(bucket_name)
         except S3Error as error:
             raise exceptions.UserError(
                 self.env._(f"Connection to MinIO failed: {str(error)}")
             ) from error
+        if not exists:
+            raise exceptions.UserError(
+                self.env._(f"Bucket {bucket_name} does not exist on MinIO.")
+            )
         return True
