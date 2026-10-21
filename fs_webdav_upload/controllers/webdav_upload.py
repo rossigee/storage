@@ -162,12 +162,10 @@ class WebDAVUploadController(http.Controller):
                     user.login,
                     attachment.id,
                 )
-                return http.Response(
-                    "",
+                return request.make_json_response(
+                    {"id": attachment.id},
+                    headers=[("Location", f"/attachment/{attachment.id}")],
                     status=201,
-                    headers={
-                        "Location": f"/attachment/{attachment.id}",
-                    },
                 )
             except Exception as e:
                 _logger.error(f"WebDAV upload failed: {str(e)}")
