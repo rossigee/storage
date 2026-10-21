@@ -3,6 +3,7 @@
 
 import io
 import logging
+import tempfile
 
 import urllib3
 from fsspec.registry import register_implementation
@@ -19,68 +20,106 @@ except ImportError as err:  # pragma: no cover
     _logger.debug(err)
 
 
-class MinioFile(io.BytesIO):
-    """A file-like object for MinIO storage.
+# Writes up to this size stay in memory; larger ones spill to a temporary file
+WRITE_SPOOL_BYTES = 8 * 1024 * 1024
+# Read-ahead buffer wrapped around the streaming reader
+READ_BUFFER_BYTES = 1024 * 1024
 
-    Handles read and write operations with buffering.
-    For writes, data is buffered and flushed to MinIO on close.
-    For reads, data is fetched from MinIO into the buffer.
+
+class MinioReadFile(io.RawIOBase):
+    """Read-only file that fetches byte ranges from MinIO as they are read.
+
+    Memory use depends on what the caller reads, not on the object's size.
     """
 
-    def __init__(
-        self, minio_fs, path, mode="rb", block_size=None, autocommit=True, **kwargs
-    ):
-        super().__init__()
-        self.path = path
-        self.mode = mode
-        self.minio_fs = minio_fs
-        self.autocommit = autocommit
-        self.kwargs = kwargs
-
-        if "r" in mode:
-            self._fetch_from_minio()
-        self.seek(0)
-
-    def _fetch_from_minio(self):
-        """Fetch the file content from MinIO into the buffer."""
-        bucket, key = self.minio_fs._split_path(self.path)
+    def __init__(self, minio_fs, path):
+        bucket, key = minio_fs._split_path(path)
         try:
-            response = self.minio_fs.client.get_object(bucket, key)
-            self.write(response.read())
-            response.close()
-            response.release_conn()
+            self._size = minio_fs.client.stat_object(bucket, key).size
         except S3Error as e:
             if e.code == "NoSuchKey":
-                pass  # File doesn't exist yet, that's OK
-            else:
-                raise
+                # Reading a missing object must fail, never return empty content
+                raise FileNotFoundError(f"{path} not found") from e
+            raise
+        self._client = minio_fs.client
+        self._bucket = bucket
+        self._key = key
+        self._pos = 0
+
+    def readable(self):
+        return True
+
+    def seekable(self):
+        return True
+
+    def tell(self):
+        return self._pos
+
+    def seek(self, offset, whence=io.SEEK_SET):
+        if whence == io.SEEK_SET:
+            pos = offset
+        elif whence == io.SEEK_CUR:
+            pos = self._pos + offset
+        elif whence == io.SEEK_END:
+            pos = self._size + offset
+        else:
+            raise ValueError(f"invalid whence: {whence}")
+        if pos < 0:
+            raise ValueError("negative seek position")
+        self._pos = pos
+        return pos
+
+    def readinto(self, buffer):
+        view = memoryview(buffer).cast("B")
+        wanted = min(len(view), max(self._size - self._pos, 0))
+        if wanted == 0:
+            return 0
+        response = self._client.get_object(
+            self._bucket, self._key, offset=self._pos, length=wanted
+        )
+        try:
+            data = response.read()
+        finally:
+            response.close()
+            response.release_conn()
+        view[: len(data)] = data
+        self._pos += len(data)
+        return len(data)
+
+
+class MinioFile(tempfile.SpooledTemporaryFile):
+    """Write-only file. Content is spooled locally, then uploaded on close.
+
+    The upload is a single put_object with the known length, so the SDK can
+    split large objects into parts itself.
+    """
+
+    def __init__(self, minio_fs, path, content_type=None):
+        super().__init__(max_size=WRITE_SPOOL_BYTES, mode="w+b")
+        self._minio_fs = minio_fs
+        self._path = path
+        self._content_type = content_type or "application/octet-stream"
 
     def close(self):
-        """Flush data to MinIO on close if in write mode."""
-        if "w" in self.mode or "a" in self.mode:
-            self._flush_to_minio()
-        return super().close()
-
-    def _flush_to_minio(self):
-        """Flush buffered data to MinIO."""
-        bucket, key = self.minio_fs._split_path(self.path)
-        data = self.getvalue()
-
-        extra_args = {}
-        if "content_type" in self.kwargs:
-            extra_args["content_type"] = self.kwargs["content_type"]
-
+        if self.closed:
+            return
         try:
-            self.minio_fs.client.put_object(
+            bucket, key = self._minio_fs._split_path(self._path)
+            length = self.tell()
+            self.seek(0)
+            # content_type is a put_object argument, not user metadata
+            self._minio_fs.client.put_object(
                 bucket,
                 key,
-                io.BytesIO(data),
-                length=len(data),
-                metadata=extra_args,
+                self,
+                length=length,
+                content_type=self._content_type,
             )
         except S3Error:
-            _logger.exception(f"Error writing file {self.path} to MinIO")
+            _logger.exception(f"Error writing file {self._path} to MinIO")
             raise
+        finally:
+            super().close()
 
 
 class MinioFileSystem(AbstractFileSystem):
@@ -115,6 +154,7 @@ class MinioFileSystem(AbstractFileSystem):
         secure=True,
         region=None,
         session_token=None,
+        ca_certs=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -125,8 +165,14 @@ class MinioFileSystem(AbstractFileSystem):
         self.region = region or "us-east-1"
         self.session_token = session_token
 
+        # TLS certificates are always verified. ``ca_certs`` only adds a CA bundle
+        # to trust (e.g. an internal CA); it never disables verification.
+        client_options = {}
+        if ca_certs:
+            client_options["http_client"] = urllib3.PoolManager(
+                cert_reqs="CERT_REQUIRED", ca_certs=ca_certs
+            )
         try:
-            http_client = urllib3.PoolManager(cert_reqs="CERT_NONE")
             self.client = Minio(
                 endpoint,
                 access_key=access_key,
@@ -134,7 +180,7 @@ class MinioFileSystem(AbstractFileSystem):
                 session_token=session_token,
                 secure=secure,
                 region=self.region,
-                http_client=http_client,
+                **client_options,
             )
         except Exception:
             _logger.exception("Error initializing MinIO client")
@@ -161,15 +207,11 @@ class MinioFileSystem(AbstractFileSystem):
         return bucket
 
     def _open(self, path, mode="rb", block_size=None, autocommit=True, **kwargs):
-        """Open a file-like object for reading or writing."""
-        return MinioFile(
-            self,
-            path,
-            mode=mode,
-            block_size=block_size,
-            autocommit=autocommit,
-            **kwargs,
-        )
+        """Open a streaming reader, or a spooled writer that uploads on close."""
+        if "r" in mode:
+            raw = MinioReadFile(self, path)
+            return io.BufferedReader(raw, buffer_size=READ_BUFFER_BYTES)
+        return MinioFile(self, path, content_type=kwargs.get("content_type"))
 
     def ls(self, path, detail=True, refresh=False, versions=False):
         """List objects in a path (bucket or prefix)."""
@@ -266,11 +308,13 @@ class MinioFileSystem(AbstractFileSystem):
                 if e.code != "NoSuchBucket":
                     raise
         else:
-            # Delete object or prefix
-            if recursive or "/" in key:
+            # Delete the object itself. A directory is only ever the objects under
+            # "key/"; a plain prefix match would also delete "key.pdf", "key2", etc.
+            if recursive:
+                self.rm_file(path)
                 try:
                     objects = self.client.list_objects(
-                        bucket, prefix=key, recursive=True
+                        bucket, prefix=f"{key.rstrip('/')}/", recursive=True
                     )
                     for obj in objects:
                         self.client.remove_object(bucket, obj.object_name)
