@@ -81,6 +81,7 @@ class TestMissingKey(unittest.TestCase):
 
 class TestStreamingRead(unittest.TestCase):
     def setUp(self):
+        super().setUp()
         self.data = bytes(range(256)) * 1000  # 256000 bytes
 
     def test_reads_the_whole_object_in_pieces(self):
@@ -146,6 +147,7 @@ class TestOpen(unittest.TestCase):
 
 class TestRmPrefix(unittest.TestCase):
     def setUp(self):
+        super().setUp()
         with mock.patch("fs_storage_minio.minio_file_system.Minio"):
             self.fs = MinioFileSystem("minio.example:9000", skip_instance_cache=True)
         self.client = self.fs.client
