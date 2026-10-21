@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pylint: disable=print-used,missing-super
 # Copyright 2025 Ross Golder
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
@@ -52,6 +53,7 @@ class TestMinioConnection(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.endpoint = os.environ.get("MINIO_ENDPOINT", "localhost:9000")
         cls.access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
         cls.secret_key = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
@@ -79,6 +81,7 @@ class TestMinioFileSystem(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.endpoint = os.environ.get("MINIO_ENDPOINT", "localhost:9000")
         cls.access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
         cls.secret_key = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
@@ -103,6 +106,7 @@ class TestMinioFileSystem(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         """Clean up test bucket."""
+        super().tearDownClass()
         try:
             cls.fs.rm(cls.test_bucket, recursive=True)
             print(f"✓ Cleaned up test bucket: {cls.test_bucket}")
@@ -212,6 +216,7 @@ class TestPresignedURLs(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.endpoint = os.environ.get("MINIO_ENDPOINT", "localhost:9000")
         cls.access_key = os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
         cls.secret_key = os.environ.get("MINIO_SECRET_KEY", "minioadmin")
@@ -235,6 +240,7 @@ class TestPresignedURLs(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         """Clean up test bucket."""
+        super().tearDownClass()
         try:
             # Remove all objects first
             objects = cls.client.list_objects(cls.test_bucket, recursive=True)

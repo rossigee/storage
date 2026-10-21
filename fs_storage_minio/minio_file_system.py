@@ -59,7 +59,7 @@ class MinioFile(io.BytesIO):
         """Flush data to MinIO on close if in write mode."""
         if "w" in self.mode or "a" in self.mode:
             self._flush_to_minio()
-        super().close()
+        return super().close()
 
     def _flush_to_minio(self):
         """Flush buffered data to MinIO."""
