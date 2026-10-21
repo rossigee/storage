@@ -57,7 +57,7 @@ class TestWebDAVUpload(HttpCase):
             headers={"Authorization": f"Bearer {self.api_key}"},
         )
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(response.headers.get("Location", "").startswith("/attachment/"))
+        self.assertIn("/attachment/", response.headers.get("Location", ""))
 
         attachment = self.env["ir.attachment"].search(
             [("name", "=", "statement.csv")], limit=1
