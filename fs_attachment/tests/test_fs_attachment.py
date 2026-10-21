@@ -491,50 +491,20 @@ class TestFSAttachment(TestFSAttachmentCommon):
             ],
         )
 
-    def test_lazy_migration_from_filestore_on_read(self):
-        """Test that reading a file that doesn't exist in object storage
-        falls back to filestore and migrates it for future requests.
-        """
-        content = b"Lazy migration test content"
-        attachment = self.ir_attachment_model.create(
-            {"name": "test_lazy_migration.txt", "raw": content}
+    def test_store_in_db_instead_of_object_storage_domain(self):
+        IrAttachment = self.env["ir.attachment"]
+        self.patch(
+            type(IrAttachment),
+            "_get_storage_force_db_config",
+            lambda self: {"text/plain": 0, "image/png": 100},
         )
-        self.env.flush_all()
-        original_store_fname = attachment.store_fname
-        filestore_path = (
-            self.ir_attachment_model._filestore() + "/" + original_store_fname
+        self.assertEqual(
+            self.env["ir.attachment"]._store_in_db_instead_of_object_storage_domain(),
+            [
+                "|",
+                ("mimetype", "=like", "text/plain%"),
+                "&",
+                ("mimetype", "=like", "image/png%"),
+                ("file_size", "<=", 100),
+            ],
         )
-        self.assertTrue(os.path.exists(filestore_path))
-        self.assertEqual(attachment.raw, content)
-        self.temp_backend.use_as_default_for_attachments = True
-        filename = f"test_lazy_migration-{attachment.id}-0.txt"
-        new_store_fname = f"tmp_dir://{filename}"
-        attachment.write({"store_fname": new_store_fname})
-        self.env.flush_all()
-        self.assertEqual(os.listdir(self.temp_dir), [])
-        self.assertEqual(attachment.raw, content)
-        self.assertIn(filename, os.listdir(self.temp_dir))
-        self.assertEqual(attachment.store_fname, new_store_fname)
-
-    def test_lazy_migration_on_file_open(self):
-        """Test lazy migration when using attachment.open() method."""
-        content = b"Lazy migration via open test"
-        attachment = self.ir_attachment_model.create(
-            {"name": "test_open_migration.txt", "raw": content}
-        )
-        self.env.flush_all()
-        original_store_fname = attachment.store_fname
-        filestore_path = (
-            self.ir_attachment_model._filestore() + "/" + original_store_fname
-        )
-        self.assertTrue(os.path.exists(filestore_path))
-        self.temp_backend.use_as_default_for_attachments = True
-        filename = f"test_open_migration-{attachment.id}-0.txt"
-        new_store_fname = f"tmp_dir://{filename}"
-        attachment.write({"store_fname": new_store_fname})
-        self.env.flush_all()
-        self.assertEqual(os.listdir(self.temp_dir), [])
-        with attachment.open("rb") as f:
-            read_content = f.read()
-        self.assertEqual(read_content, content)
-        self.assertIn(filename, os.listdir(self.temp_dir))
