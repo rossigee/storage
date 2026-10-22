@@ -435,7 +435,7 @@ class IrAttachment(models.Model):
                 exc_info=True,
             )
 
-        filestore_data = self._read_from_filestore(fname)
+        filestore_data = self._read_from_filestore(fname, attachment)
         if filestore_data is not None:
             _logger.warning(
                 "Attachment %s: File %s found in filestore but not in object "
@@ -446,7 +446,7 @@ class IrAttachment(models.Model):
                 _storage,
             )
             new_fname = self._migrate_filestore_to_object_storage(
-                filestore_data, _storage
+                filestore_data, _storage, fname
             )
             if attachment and new_fname:
                 attachment.write({"store_fname": new_fname, "is_missing": False})
@@ -466,39 +466,50 @@ class IrAttachment(models.Model):
         return b""
 
     @api.model
-    def _read_from_filestore(self, fname: str) -> bytes | None:
+    def _read_from_filestore(self, fname: str, attachment=None) -> bytes | None:
         """Try to read a file from the Odoo filestore.
 
-        This method checks if the file exists in the filestore (legacy storage)
-        and returns its content if found.
+        The filestore path is derived from the attachment's checksum
+        (``<checksum[:2]>/<checksum>``, or ``<checksum[:3]>/<checksum>`` for
+        legacy files). When no attachment is given, fall back to ``fname``.
 
         :param fname: The relative path of the file in the filestore
+        :param attachment: Optional attachment record, used to locate the file
+            by its checksum
         :return: The file content as bytes, or None if not found
         """
-        try:
-            filestore_path = os.path.join(self._filestore(), fname)
-            if os.path.exists(filestore_path):
-                with open(filestore_path, "rb") as f:
-                    return f.read()
-        except OSError:
-            _logger.info("Error reading %s from filestore", fname, exc_info=True)
+        candidates = []
+        if attachment and attachment.checksum:
+            sha = attachment.checksum
+            candidates.extend([f"{sha[:2]}/{sha}", f"{sha[:3]}/{sha}"])
+        candidates.append(fname)
+        for candidate in candidates:
+            filestore_path = os.path.join(self._filestore(), candidate)
+            try:
+                if os.path.exists(filestore_path):
+                    with open(filestore_path, "rb") as f:
+                        return f.read()
+            except OSError:
+                _logger.info(
+                    "Error reading %s from filestore", candidate, exc_info=True
+                )
         return None
 
     @api.model
     def _migrate_filestore_to_object_storage(
-        self, bin_data: bytes, storage_code: str
+        self, bin_data: bytes, storage_code: str, path: str
     ) -> str | None:
-        """Migrate a file from filestore to object storage.
+        """Write the given content to object storage at the given path.
 
         :param bin_data: The file content to write
         :param storage_code: The target storage code (e.g., 'minio-prod')
-        :return: The new store_fname, or None if write failed
+        :param path: The path within the storage (relative, no scheme)
+        :return: The store_fname, or None if the write failed
         """
         try:
             fs = self._get_fs_storage_for_code(storage_code)
-            path = self._get_fs_path(storage_code, bin_data)
             dirname = os.path.dirname(path)
-            if not fs.exists(dirname):
+            if dirname and not fs.exists(dirname):
                 fs.makedirs(dirname)
             fname = f"{storage_code}://{path}"
             kwargs = self._storage_write_option(fs)
@@ -1181,7 +1192,9 @@ class AttachmentFileLikeAdapter:
                         _storage,
                         exc_info=True,
                     )
-                    filestore_data = self.attachment._read_from_filestore(filepath)
+                    filestore_data = self.attachment._read_from_filestore(
+                        filepath, self.attachment
+                    )
                     if filestore_data is not None:
                         _logger.info(
                             "Found file %s in filestore, migrating to storage %s",
@@ -1190,7 +1203,7 @@ class AttachmentFileLikeAdapter:
                         )
                         new_fname = (
                             self.attachment._migrate_filestore_to_object_storage(
-                                filestore_data, _storage
+                                filestore_data, _storage, filepath
                             )
                         )
                         if new_fname:
