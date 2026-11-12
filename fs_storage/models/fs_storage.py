@@ -89,7 +89,6 @@ def prevent_call_from_safe_eval(reason):
 
 class FSStorage(models.Model):
     _name = "fs.storage"
-    _inherit = "server.env.mixin"
     _description = "FS Storage"
 
     __slots__ = ("__fs", "__odoo_storage_path")
@@ -235,8 +234,6 @@ class FSStorage(models.Model):
         ),
     ]
 
-    _server_env_section_name_field = "code"
-
     @api.constrains("model_xmlids")
     def _check_model_xmlid_storage_unique(self):
         """
@@ -301,18 +298,6 @@ class FSStorage(models.Model):
             ("marker_file", _("Create Marker file")),
             ("ls", _("List File")),
         ]
-
-    @property
-    def _server_env_fields(self):
-        return {
-            "protocol": {},
-            "options": {},
-            "directory_path": {},
-            "eval_options_from_env": {},
-            "model_xmlids": {},
-            "field_xmlids": {},
-            "check_connection_method": {},
-        }
 
     @api.model_create_multi
     @prevent_call_from_safe_eval("create")
@@ -476,7 +461,24 @@ class FSStorage(models.Model):
     @api.model
     def _get_protocols(self) -> list[tuple[str, str]]:
         protocol = [("odoofs", "Odoo's FileSystem")]
-        for p in fsspec.available_protocols():
+        # Ensure minio protocol is registered in fsspec.registry before
+        # building the Selection options. fs_storage_minio depends on
+        # fs_storage, so it loads after us and _get_protocols() can be
+        # called before it registers.  Importing at call-time (not at
+        # module load) avoids circular-import issues.
+        if "minio" not in fsspec.registry:
+            try:
+                import importlib
+
+                importlib.import_module(
+                    "odoo.addons.fs_storage_minio.minio_file_system"
+                )
+            except ImportError:
+                _logger.debug("fs_storage_minio not available; minio protocol disabled")
+        # available_protocols() only lists fsspec's built-in known_implementations;
+        # custom protocols added via register_implementation() (e.g. minio) are only
+        # visible in fsspec.registry, so both sources must be checked.
+        for p in set(fsspec.available_protocols()) | set(fsspec.registry):
             try:
                 cls = fsspec.get_filesystem_class(p)
                 protocol.append((p, f"{p} ({cls.__name__})"))
