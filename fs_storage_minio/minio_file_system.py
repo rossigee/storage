@@ -142,9 +142,9 @@ class MinioFile(tempfile.SpooledTemporaryFile):
         # incomplete content: discard it instead of uploading it.
         self._discard = True
         try:
-            super().__del__()
+            return super().__del__()
         except Exception:  # pragma: no cover - best effort cleanup
-            pass
+            _logger.debug("Ignoring error while discarding %s", self._path)
 
 
 class MinioFileSystem(AbstractFileSystem):
