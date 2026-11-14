@@ -99,27 +99,52 @@ class MinioFile(tempfile.SpooledTemporaryFile):
         self._minio_fs = minio_fs
         self._path = path
         self._content_type = content_type or "application/octet-stream"
+        # Set to True when the content must not be uploaded (write error or
+        # garbage collection): the spooled data is then simply discarded.
+        self._discard = False
 
     def close(self):
         if self.closed:
             return
         try:
-            bucket, key = self._minio_fs._split_path(self._path)
-            length = self.tell()
-            self.seek(0)
-            # content_type is a put_object argument, not user metadata
-            self._minio_fs.client.put_object(
-                bucket,
-                key,
-                self,
-                length=length,
-                content_type=self._content_type,
-            )
+            if not self._discard:
+                bucket, key = self._minio_fs._split_path(self._path)
+                length = self.tell()
+                self.seek(0)
+                # content_type is a put_object argument, not user metadata
+                self._minio_fs.client.put_object(
+                    bucket,
+                    key,
+                    self,
+                    length=length,
+                    content_type=self._content_type,
+                )
         except S3Error:
             _logger.exception(f"Error writing file {self._path} to MinIO")
             raise
         finally:
             super().close()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        # ``tempfile.SpooledTemporaryFile.__exit__`` closes the underlying
+        # file directly and would therefore skip the upload done by
+        # ``close()``. Every write done through a ``with`` block would be
+        # silently lost, so the upload is driven from here instead.
+        if exc_type is None:
+            self.close()
+        else:
+            self._discard = True
+            super().close()
+        return False
+
+    def __del__(self):
+        # A file that is garbage collected without being closed holds
+        # incomplete content: discard it instead of uploading it.
+        self._discard = True
+        try:
+            super().__del__()
+        except Exception:  # pragma: no cover - best effort cleanup
+            pass
 
 
 class MinioFileSystem(AbstractFileSystem):
