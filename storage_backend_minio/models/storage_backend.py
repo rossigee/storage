@@ -15,11 +15,11 @@ class StorageBackend(models.Model):
         string="MinIO Host",
         help="MinIO server host (e.g., localhost:9000)",
     )
-    minio_bucket = fields.Char(string="Bucket")
+    minio_bucket = fields.Char(string="MinIO Bucket")
     minio_access_key = fields.Char(string="Access Key")
     minio_secret_key = fields.Char(string="Secret Key")
     minio_region = fields.Char(
-        string="Region",
+        string="MinIO Region",
         help="Region name (optional, default is 'us-east-1')",
     )
     minio_cache_control = fields.Char(default="max-age=31536000, public")
