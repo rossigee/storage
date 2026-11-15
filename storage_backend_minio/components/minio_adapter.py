@@ -5,6 +5,7 @@ import io
 import logging
 
 from odoo import exceptions
+
 from odoo.addons.component.core import Component
 
 _logger = logging.getLogger(__name__)
