@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_create,perm_read,perm_write,perm_unlink
+access_fs_attachment_migration_wizard_system,fs.attachment.migration.wizard system,model_fs_attachment_migration_wizard,base.group_system,1,1,1,1
