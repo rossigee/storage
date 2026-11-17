@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="fs_storage_form_reconcile" model="ir.ui.view">
+        <field name="name">fs.storage.form.reconcile</field>
+        <field name="model">fs.storage</field>
+        <field name="inherit_id" ref="fs_storage.fs_storage_form_view" />
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="before">
+                <header>
+                    <button
+                        name="action_scan_orphans"
+                        string="Scan for Unassigned Objects"
+                        type="object"
+                        class="btn-primary"
+                        groups="base.group_system"
+                    />
+                </header>
+            </xpath>
+            <xpath expr="//sheet" position="inside">
+                <group string="Storage Usage">
+                    <group>
+                        <field name="attachment_count" />
+                        <field name="bytes_used" widget="float" />
+                    </group>
+                    <group>
+                        <field name="missing_attachment_count" />
+                        <field name="orphan_count" />
+                        <field name="last_orphan_scan" />
+                    </group>
+                </group>
+                <button
+                    name="action_view_orphans"
+                    type="object"
+                    string="View Unassigned Objects"
+                    class="btn-secondary"
+                />
+            </xpath>
+        </field>
+    </record>
+</odoo>
