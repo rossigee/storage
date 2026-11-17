@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="fs_storage_orphan_tree" model="ir.ui.view">
+        <field name="name">fs.storage.orphan.tree</field>
+        <field name="model">fs.storage.orphan</field>
+        <field name="arch" type="xml">
+            <tree decoration-muted="state != 'new'">
+                <field name="storage_id" />
+                <field name="path" />
+                <field name="size" />
+                <field name="last_modified" />
+                <field name="state" widget="badge" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="fs_storage_orphan_form" model="ir.ui.view">
+        <field name="name">fs.storage.orphan.form</field>
+        <field name="model">fs.storage.orphan</field>
+        <field name="arch" type="xml">
+            <form string="Unassigned Object">
+                <header>
+                    <button
+                        name="%(fs_storage_reconcile.action_fs_storage_orphan_assign)d"
+                        string="Assign to Record"
+                        type="action"
+                        class="btn-primary"
+                        context="{'default_orphan_id': id}"
+                        invisible="state != 'new'"
+                    />
+                    <button
+                        name="action_ignore"
+                        string="Ignore"
+                        type="object"
+                        invisible="state != 'new'"
+                    />
+                    <button
+                        name="action_delete_from_bucket"
+                        string="Delete from Bucket"
+                        type="object"
+                        class="btn-danger"
+                        confirm="Permanently delete this object from the bucket?"
+                        invisible="state != 'new'"
+                    />
+                    <field
+                        name="state"
+                        widget="statusbar"
+                        statusbar_visible="new,assigned,ignored"
+                    />
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="storage_id" />
+                            <field name="path" />
+                            <field name="store_fname" />
+                        </group>
+                        <group>
+                            <field name="size" />
+                            <field name="last_modified" />
+                            <field name="attachment_id" invisible="not attachment_id" />
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" />
+                    <field name="message_ids" />
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="fs_storage_orphan_search" model="ir.ui.view">
+        <field name="name">fs.storage.orphan.search</field>
+        <field name="model">fs.storage.orphan</field>
+        <field name="arch" type="xml">
+            <search string="Unassigned Objects">
+                <field name="path" />
+                <field name="storage_id" />
+                <filter
+                    name="unassigned"
+                    string="Unassigned"
+                    domain="[('state', '=', 'new')]"
+                />
+                <filter
+                    name="ignored"
+                    string="Ignored"
+                    domain="[('state', '=', 'ignored')]"
+                />
+                <group expand="0" string="Group By">
+                    <filter
+                        name="group_storage"
+                        string="Storage"
+                        context="{'group_by': 'storage_id'}"
+                    />
+                    <filter
+                        name="group_state"
+                        string="State"
+                        context="{'group_by': 'state'}"
+                    />
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_fs_storage_orphan" model="ir.actions.act_window">
+        <field name="name">Unassigned Objects</field>
+        <field name="res_model">fs.storage.orphan</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="fs_storage_orphan_search" />
+        <field name="context">{'search_default_unassigned': 1}</field>
+    </record>
+
+    <menuitem
+        id="menu_fs_storage_orphan"
+        name="Unassigned Objects"
+        parent="fs_storage.menu_storage"
+        action="action_fs_storage_orphan"
+        sequence="30"
+    />
+</odoo>

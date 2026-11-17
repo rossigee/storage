@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fs_storage_orphan_operator,fs.storage.orphan operator,model_fs_storage_orphan,group_storage_operator,1,1,1,0
+access_fs_storage_orphan_system,fs.storage.orphan system,model_fs_storage_orphan,base.group_system,1,1,1,1
+access_fs_storage_orphan_assign_operator,fs.storage.orphan.assign operator,model_fs_storage_orphan_assign,group_storage_operator,1,1,1,1
