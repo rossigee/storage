@@ -29,6 +29,17 @@ WebDAV endpoint for file uploads.
 .. contents::
    :local:
 
+
+DMS integration
+===============
+
+If the optional `dms` module (OCA/dms) is installed, uploads can be routed to a
+DMS directory instead of plain attachments by setting the system parameter
+``fs_webdav_upload.dms_directory_id`` to the target directory (numeric id or
+XML id). Uploaded files are then created as ``dms.file`` records in that
+directory. When the parameter is unset, or the directory cannot be resolved,
+uploads fall back to creating ``ir.attachment`` records as before.
+
 Bug Tracker
 ===========
 
