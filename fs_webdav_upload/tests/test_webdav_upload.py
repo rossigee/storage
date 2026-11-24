@@ -104,9 +104,7 @@ class TestWebDAVUpload(HttpCase):
             "fs_webdav_upload.dms_directory_id", str(directory.id)
         )
         self.addCleanup(
-            self.env["ir.config_parameter"]
-            .sudo()
-            .set_param,
+            self.env["ir.config_parameter"].sudo().set_param,
             "fs_webdav_upload.dms_directory_id",
             False,
         )
