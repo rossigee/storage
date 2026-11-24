@@ -22,6 +22,40 @@ def _json_error(message, status):
     )
 
 
+def _dms_inbox_directory():
+    """Resolve the DMS directory DAV uploads should land in, or None.
+
+    Configured via the ``fs_webdav_upload.dms_directory_id`` system parameter.
+    The value may be a numeric directory id (``42``) or an XML id
+    (``my_module.my_directory``). Returns None when the parameter is unset,
+    the ``dms`` module is not installed, or the configured directory no
+    longer exists, in which case uploads fall back to plain attachments.
+    """
+    icp = request.env["ir.config_parameter"].sudo()
+    value = (icp.get_param("fs_webdav_upload.dms_directory_id") or "").strip()
+    if not value:
+        return None
+    try:
+        directories = request.env["dms.directory"]
+    except KeyError:
+        # dms module not installed in this database
+        return None
+    if value.isdigit():
+        directory = directories.sudo().browse(int(value))
+    else:
+        directory = request.env.ref(value, raise_if_not_found=False)
+        if directory:
+            directory = directory.sudo()
+    if not directory or not directory.exists():
+        _logger.warning(
+            "fs_webdav_upload: dms_directory_id %r does not resolve to a directory; "
+            "falling back to attachment storage",
+            value,
+        )
+        return None
+    return directory
+
+
 def _authenticate():
     """Validate the Bearer token and return (user, error_response).
 
@@ -140,6 +174,38 @@ class WebDAVUploadController(http.Controller):
                     return _json_error("Empty body", 400)
                 if len(file_data) > _MAX_UPLOAD_BYTES:
                     return _json_error("File too large", 413)
+
+                dms_directory = _dms_inbox_directory()
+                if dms_directory is not None:
+                    dms_file = (
+                        request.env["dms.file"]
+                        .sudo()
+                        .create(
+                            {
+                                "name": filename,
+                                "directory_id": dms_directory.id,
+                                "content": base64.b64encode(file_data),
+                            }
+                        )
+                    )
+                    _logger.info(
+                        "WebDAV upload successful: %s by user %s "
+                        "(dms.file id: %s, directory: %s)",
+                        filename,
+                        user.login,
+                        dms_file.id,
+                        dms_directory.complete_name,
+                    )
+                    return request.make_json_response(
+                        {"id": dms_file.id, "model": "dms.file"},
+                        headers=[
+                            (
+                                "Location",
+                                f"/web#id={dms_file.id}&model=dms.file&view_type=form",
+                            )
+                        ],
+                        status=201,
+                    )
 
                 attachment = (
                     request.env["ir.attachment"]
